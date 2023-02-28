@@ -84,7 +84,8 @@ contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
 
   function depositETHToStrategy(IStrategy strategy, uint256 amount) external onlyOwner {
     require(addressRegistry.getStrategyWhitelisted(strategy));
-    address(strategy).call{value: amount}("");
+    (bool depositSuccess,) = address(strategy).call{value: amount}("");
+    require(depositSuccess, "Deposit failed");
   }
 
   receive() external payable {
