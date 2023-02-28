@@ -1,7 +1,7 @@
 pragma solidity 0.8.17;
 
 import "forge-std/Script.sol";
-import "../src/contracts/Factory.sol";
+import "@/FactoryTokens.sol";
 
 contract DeployFactory is Script {
     function run() external {
@@ -10,7 +10,7 @@ contract DeployFactory is Script {
 
         vm.startBroadcast(deployerPrivateKey);
 
-        Factory factory = new Factory();
+        FactoryTokens factory = new FactoryTokens();
         esTROVE(factory.esTroveAddress()).init(troveAddress, 360, factory.farmAddress());
         Farm(factory.farmAddress()).init(IERC20(factory.esTroveAddress()), 30e18, 3575, 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff);
 
