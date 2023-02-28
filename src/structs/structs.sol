@@ -1,4 +1,8 @@
+// SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
+
+import "@vault/IVault.sol";
+
 
 enum PairType {
     USDC,
@@ -15,7 +19,42 @@ struct CoinWeight {
     uint256 weight;
 }
 
-struct CoinValue{
+struct CoinValue {
     address coin;
     uint256 value;
+}
+
+struct CoinWeightsParams {
+    CoinPriceUSD[] cpu;
+    IVault vault;
+    uint256 expireTimestamp;
+    bytes32 nonce;
+    bytes32 r;
+    bytes32 s;
+    uint8 v;
+}
+
+struct DepositFeeParams {
+    CoinPriceUSD[] cpu;
+    IVault vault;
+    uint256 expireTimestamp;
+    bytes32 nonce;
+    bytes32 r;
+    bytes32 s;
+    uint8 v;
+    uint256 position;
+    uint256 amount;
+}
+
+
+struct WithdrawalFeeParams {
+    CoinPriceUSD[] cpu;
+    IVault vault;
+    uint256 expireTimestamp;
+    bytes32 nonce;
+    bytes32 r;
+    bytes32 s;
+    uint8 v;
+    uint256 position;
+    uint256 amount;
 }

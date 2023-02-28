@@ -1,7 +1,7 @@
 pragma solidity 0.8.17;
 
 import "forge-std/Script.sol";
-import "../src/contracts/Factory.sol";
+import "@/FactoryTokens.sol";
 
 contract MassUpdatePools is Script {
     function run() external {

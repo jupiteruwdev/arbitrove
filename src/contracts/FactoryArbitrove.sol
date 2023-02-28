@@ -3,7 +3,7 @@ pragma solidity 0.8.17;
 import "openzeppelin-contracts/contracts/access/Ownable.sol";
 import "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import "@vault/Vault.sol";
-import "./AddressRegistry.sol";
+import "@/AddressRegistry.sol";
 import "@/TProxy.sol";
 
 contract FactoryArbitrove is Ownable {

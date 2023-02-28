@@ -3,9 +3,9 @@
 pragma solidity 0.8.17;
 
 import "ds-test/test.sol";
-import "../mocks/MockERC20.sol";
-import "../contracts/farm/Farm.sol";
-import "../contracts/tokens/esTROVE.sol";
+import "@mocks/MockERC20.sol";
+import "@farm/Farm.sol";
+import "@tokens/esTROVE.sol";
 
 contract FarmTest is DSTest {
     Farm farm;

@@ -50,28 +50,72 @@ contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
     }
   }
 
-  function deposit(uint256 coinPositionInCPU, uint256 _amount, CoinPriceUSD[] calldata cpu, uint256 expireTimestamp, bytes32 nonce, bytes32 r, bytes32 s, uint8 v) external payable {
+  struct DepositParams {
+    uint256 coinPositionInCPU;
+    uint256 _amount;
+    CoinPriceUSD[] cpu;
+    uint256 expireTimestamp;
+    bytes32 nonce;
+    bytes32 r;
+    bytes32 s;
+    uint8 v;
+  }
+
+  function deposit(DepositParams memory params) external payable {
+    DepositFeeParams memory depositFeeParams = DepositFeeParams({
+      cpu: params.cpu,
+      vault: this,
+      expireTimestamp: params.expireTimestamp,
+      nonce: params.nonce,
+      r: params.r,
+      s: params.s,
+      v: params.v,
+      position: params.coinPositionInCPU,
+      amount: params._amount
+    });
     require(tx.origin == msg.sender, "No contracts please");
-    address coin = cpu[coinPositionInCPU].coin;
-    uint256 amount = coin == address(0) ? msg.value : _amount;
+    address coin = params.cpu[params.coinPositionInCPU].coin;
+    uint256 amount = coin == address(0) ? msg.value : params._amount;
     require(getAmountAcrossStrategies(coin) + amount < coinCap[coin]);
-    uint256 newTvlUSD10000X = cpu[coinPositionInCPU].price * _amount / 10**ERC20(cpu[coinPositionInCPU].coin).decimals();
+    uint256 newTvlUSD10000X = params.cpu[params.coinPositionInCPU].price * params._amount / 10**ERC20(params.cpu[params.coinPositionInCPU].coin).decimals();
     require(newTvlUSD10000X + blockCapCounter[block.number] < blockCapUSD);
     blockCapCounter[block.number] += newTvlUSD10000X;
-    (int256 fee, , uint256 tvlUSD10000X) = addressRegistry.feeOracle().getDepositFee(cpu, this, expireTimestamp,nonce, r, s, v, coinPositionInCPU, _amount);
+    (int256 fee, , uint256 tvlUSD10000X) = addressRegistry.feeOracle().getDepositFee(depositFeeParams);
     uint256 poolRatio = newTvlUSD10000X * 10000 / (newTvlUSD10000X + tvlUSD10000X);
     _mint(msg.sender, poolRatio * totalSupply() / (10000 - poolRatio) / 10000 * uint256(100 - fee) / 100);
   }
 
-  function withdrawal(uint256 coinPositionInCPU, uint256 _amount, CoinPriceUSD[] calldata cpu, uint256 expireTimestamp, bytes32 nonce, bytes32 r, bytes32 s, uint8 v) external payable {
+  struct WithdrawalParams {
+    uint256 coinPositionInCPU;
+    uint256 _amount;
+    CoinPriceUSD[] cpu;
+    uint256 expireTimestamp;
+    bytes32 nonce;
+    bytes32 r;
+    bytes32 s;
+    uint8 v;
+  }
+
+  function withdrawal(WithdrawalParams memory params) external payable {
+    WithdrawalFeeParams memory withdrawalFeeParams = WithdrawalFeeParams({
+      cpu: params.cpu,
+      vault: this,
+      expireTimestamp: params.expireTimestamp,
+      nonce: params.nonce,
+      r: params.r,
+      s: params.s,
+      v: params.v,
+      position: params.coinPositionInCPU,
+      amount: params._amount
+    });
     require(tx.origin == msg.sender, "No contracts please");
-    address coin = cpu[coinPositionInCPU].coin;
-    uint256 amount = coin == address(0) ? msg.value : _amount;
-    uint256 lessTvlUSD10000X = cpu[coinPositionInCPU].price * _amount / 10**ERC20(cpu[coinPositionInCPU].coin).decimals();
+    address coin = params.cpu[params.coinPositionInCPU].coin;
+    uint256 amount = coin == address(0) ? msg.value : params._amount;
+    uint256 lessTvlUSD10000X = params.cpu[params.coinPositionInCPU].price * params._amount / 10**ERC20(params.cpu[params.coinPositionInCPU].coin).decimals();
     require(lessTvlUSD10000X + blockCapCounter[block.number] < blockCapUSD);
     blockCapCounter[block.number] += lessTvlUSD10000X;
     require(getAmountAcrossStrategies(coin) + amount < coinCap[coin]);
-    (int256 fee, , uint256 tvlUSD10000X) = addressRegistry.feeOracle().getWithdrawalFee(cpu, this, expireTimestamp,nonce, r, s, v, coinPositionInCPU, _amount);
+    (int256 fee, , uint256 tvlUSD10000X) = addressRegistry.feeOracle().getWithdrawalFee(withdrawalFeeParams);
     
     uint256 poolRatio = lessTvlUSD10000X * 10000 / (tvlUSD10000X);
     _burn(msg.sender, poolRatio * totalSupply() / 10000 * uint256(100 + fee) / 100);

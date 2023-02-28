@@ -53,19 +53,19 @@ contract FeeOracle is OwnableUpgradeable {
         }
     }
 
-    function getCoinWeights(CoinPriceUSD[] calldata cpu, IVault vault, uint256 expireTimestamp, bytes32 nonce, bytes32 r, bytes32 s, uint8 v) isNormalizedWeightArray(weights) public returns(CoinWeight[] memory weights, uint256 tvlUSD10000X) {
+    function getCoinWeights(CoinWeightsParams memory params) isNormalizedWeightArray(weights) public returns(CoinWeight[] memory weights, uint256 tvlUSD10000X) {
         weights = new CoinWeight[](targets.length);
-        require(block.timestamp < expireTimestamp, "Execution window passed");
-        require(!nonceActivated[nonce], "NOnce already activated");
+        require(block.timestamp < params.expireTimestamp, "Execution window passed");
+        require(!nonceActivated[params.nonce], "NOnce already activated");
         // activate nonce
-        nonceActivated[nonce] = true;
+        nonceActivated[params.nonce] = true;
         // verify signature
-        require(ecrecover(keccak256(abi.encode(cpu, address(vault), expireTimestamp, nonce)), v, r, s) == addressRegistry.oracleSigner(), "Signature verification failed");
-        require(cpu.length == targets.length, "Oracle length error");
+        require(ecrecover(keccak256(abi.encode(params.cpu, address(params.vault), params.expireTimestamp, params.nonce)), params.v, params.r, params.s) == addressRegistry.oracleSigner(), "Signature verification failed");
+        require(params.cpu.length == targets.length, "Oracle length error");
         for (uint256 i; i < targets.length;) {
-            uint256 amount = vault.getAmountAcrossStrategies(targets[i].coin);
-            require(cpu[i].coin == targets[i].coin, "Oracle order error");
-            weights[i] = CoinWeight(cpu[i].coin, amount);
+            uint256 amount = params.vault.getAmountAcrossStrategies(targets[i].coin);
+            require(params.cpu[i].coin == targets[i].coin, "Oracle order error");
+            weights[i] = CoinWeight(params.cpu[i].coin, amount);
             unchecked {
                 i++;
             }
@@ -74,27 +74,36 @@ contract FeeOracle is OwnableUpgradeable {
         // find max
         tvlUSD10000X = 0;
         for (uint256 i; i < targets.length;) {
-            require(cpu[i].coin == targets[i].coin, "Oracle order error");
-            tvlUSD10000X += weights[i].weight * cpu[i].price / 10**ERC20(cpu[i].coin).decimals();
+            require(params.cpu[i].coin == targets[i].coin, "Oracle order error");
+            tvlUSD10000X += weights[i].weight * params.cpu[i].price / 10**ERC20(params.cpu[i].coin).decimals();
             unchecked {
                 i++;
             }
         }
         for (uint256 i; i < targets.length;) {
-            require(cpu[i].coin == weights[i].coin, "Oracle order error");
-            weights[i].weight = weights[i].weight * cpu[i].price / 10**ERC20(cpu[i].coin).decimals() * 100 / tvlUSD10000X;
+            require(params.cpu[i].coin == weights[i].coin, "Oracle order error");
+            weights[i].weight = weights[i].weight * params.cpu[i].price * 100 / tvlUSD10000X / 10**ERC20(params.cpu[i].coin).decimals();
             unchecked {
                 i++;
             }
         }
     }
     
-    function getDepositFee(CoinPriceUSD[] calldata cpu, IVault vault, uint256 expireTimestamp, bytes32 nonce, bytes32 r, bytes32 s, uint8 v, uint256 position, uint256 amount) external returns (int256 fee, CoinWeight[] memory weights, uint256 tvlUSD10000X) {
-        (weights, tvlUSD10000X) = getCoinWeights(cpu, vault, expireTimestamp, nonce, r, s, v);
-        CoinWeight memory target = targets[position];
-        CoinWeight memory currentCoinWeight = weights[position];
+    function getDepositFee(DepositFeeParams memory params) external returns (int256 fee, CoinWeight[] memory weights, uint256 tvlUSD10000X) {
+        CoinWeightsParams memory coinWeightParams = CoinWeightsParams({
+            cpu: params.cpu,
+            vault: params.vault,
+            expireTimestamp: params.expireTimestamp,
+            nonce: params.nonce,
+            r: params.r,
+            s: params.s,
+            v: params.v
+        });
+        (weights, tvlUSD10000X) = getCoinWeights(coinWeightParams);
+        CoinWeight memory target = targets[params.position];
+        CoinWeight memory currentCoinWeight = weights[params.position];
         require(target.coin == currentCoinWeight.coin, "Oracle order error");
-        uint256 depositValueUSD10000X = amount * cpu[position].price / 10**ERC20(cpu[position].coin).decimals();
+        uint256 depositValueUSD10000X = params.amount * params.cpu[params.position].price / 10**ERC20(params.cpu[params.position].coin).decimals();
         uint256 newWeight = (currentCoinWeight.weight * tvlUSD10000X / 100 + depositValueUSD10000X) * 100 / (tvlUSD10000X + depositValueUSD10000X);
         // calculate distance
         uint256 originalDistance = target.weight >= currentCoinWeight.weight ? (target.weight - currentCoinWeight.weight) * 100 / target.weight : (currentCoinWeight.weight - target.weight) * 100 / target.weight;
@@ -111,12 +120,21 @@ contract FeeOracle is OwnableUpgradeable {
         }
     }
 
-    function getWithdrawalFee(CoinPriceUSD[] calldata cpu, IVault vault, uint256 expireTimestamp, bytes32 nonce, bytes32 r, bytes32 s, uint8 v, uint256 position, uint256 amount) external returns (int256 fee, CoinWeight[] memory weights, uint256 tvlUSD10000X) {
-        (weights, tvlUSD10000X) = getCoinWeights(cpu, vault, expireTimestamp, nonce, r, s, v);
-        CoinWeight memory target = targets[position];
-        CoinWeight memory currentCoinWeight = weights[position];
+    function getWithdrawalFee(WithdrawalFeeParams memory params) external returns (int256 fee, CoinWeight[] memory weights, uint256 tvlUSD10000X) {
+        CoinWeightsParams memory coinWeightParams = CoinWeightsParams({
+            cpu: params.cpu,
+            vault: params.vault,
+            expireTimestamp: params.expireTimestamp,
+            nonce: params.nonce,
+            r: params.r,
+            s: params.s,
+            v: params.v
+        });
+        (weights, tvlUSD10000X) = getCoinWeights(coinWeightParams);
+        CoinWeight memory target = targets[params.position];
+        CoinWeight memory currentCoinWeight = weights[params.position];
         require(target.coin == currentCoinWeight.coin, "Oracle order error");
-        uint256 withdrawalValueUSD10000X = amount * cpu[position].price / 10**ERC20(cpu[position].coin).decimals();
+        uint256 withdrawalValueUSD10000X = params.amount * params.cpu[params.position].price / 10**ERC20(params.cpu[params.position].coin).decimals();
         uint256 newWeight = (currentCoinWeight.weight * tvlUSD10000X / 100 - withdrawalValueUSD10000X) * 100 / (tvlUSD10000X + withdrawalValueUSD10000X);
         // calculate distance
         uint256 originalDistance = target.weight >= currentCoinWeight.weight ? (target.weight - currentCoinWeight.weight) * 100 / target.weight : (currentCoinWeight.weight - target.weight) * 100 / target.weight;
