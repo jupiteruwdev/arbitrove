@@ -18,6 +18,7 @@ contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
   mapping(uint => uint) blockCapCounter;
   // only process certain amount of tx in USD per block
   uint256 public blockCapUSD;
+  mapping(address => uint) public debt;
 
   function init(AddressRegistry _addressRegistry) initializer payable external {
     __Ownable_init();
@@ -73,7 +74,7 @@ contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
       position: params.coinPositionInCPU,
       amount: params._amount
     });
-    require(tx.origin == msg.sender, "No contracts please");
+    require(msg.sender == addressRegistry.router());
     address coin = params.cpu[params.coinPositionInCPU].coin;
     uint256 amount = coin == address(0) ? msg.value : params._amount;
     require(getAmountAcrossStrategies(coin) + amount < coinCap[coin]);
@@ -108,7 +109,7 @@ contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
       position: params.coinPositionInCPU,
       amount: params._amount
     });
-    require(tx.origin == msg.sender, "No contracts please");
+    require(msg.sender == addressRegistry.router());
     address coin = params.cpu[params.coinPositionInCPU].coin;
     uint256 amount = coin == address(0) ? msg.value : params._amount;
     uint256 lessTvlUSD10000X = params.cpu[params.coinPositionInCPU].price * params._amount / 10**ERC20(params.cpu[params.coinPositionInCPU].coin).decimals();
@@ -116,9 +117,13 @@ contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
     blockCapCounter[block.number] += lessTvlUSD10000X;
     require(getAmountAcrossStrategies(coin) + amount < coinCap[coin]);
     (int256 fee, , uint256 tvlUSD10000X) = addressRegistry.feeOracle().getWithdrawalFee(withdrawalFeeParams);
-    
     uint256 poolRatio = lessTvlUSD10000X * 10000 / (tvlUSD10000X);
     _burn(msg.sender, poolRatio * totalSupply() / 10000 * uint256(100 + fee) / 100);
+    debt[coin] += amount;
+  }
+
+  function claimDebt() external {
+    require(msg.sender == addressRegistry.router());
   }
 
   function approveStrategy(IStrategy strategy, address coin, uint256 amount) external onlyOwner {

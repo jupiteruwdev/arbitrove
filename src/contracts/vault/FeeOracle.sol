@@ -63,7 +63,7 @@ contract FeeOracle is OwnableUpgradeable {
         require(ecrecover(keccak256(abi.encode(params.cpu, address(params.vault), params.expireTimestamp, params.nonce)), params.v, params.r, params.s) == addressRegistry.oracleSigner(), "Signature verification failed");
         require(params.cpu.length == targets.length, "Oracle length error");
         for (uint256 i; i < targets.length;) {
-            uint256 amount = params.vault.getAmountAcrossStrategies(targets[i].coin);
+            uint256 amount = params.vault.getAmountAcrossStrategies(targets[i].coin) - params.vault.debt(targets[i].coin);
             require(params.cpu[i].coin == targets[i].coin, "Oracle order error");
             weights[i] = CoinWeight(params.cpu[i].coin, amount);
             unchecked {

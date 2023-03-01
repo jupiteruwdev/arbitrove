@@ -9,6 +9,7 @@ contract AddressRegistry is OwnableUpgradeable {
   address public oracleSigner;
   IVault public vault;
   FeeOracle public feeOracle;
+  address public router;
   mapping (address => IStrategy[]) public coinToStrategy;
   mapping (IStrategy => bool) public strategyWhitelist;
   address[] public supportedCoinAddresses;
@@ -21,12 +22,13 @@ contract AddressRegistry is OwnableUpgradeable {
     return strategyWhitelist[s];
   }
   
-  function init(address _oracleSigner, IVault _vault, FeeOracle _feeOracle) initializer external {
+  function init(address _oracleSigner, IVault _vault, FeeOracle _feeOracle, address _router) initializer external {
     __Ownable_init();
     require(_oracleSigner != address(0));
     oracleSigner = _oracleSigner;
     vault = _vault;
     feeOracle = _feeOracle;
+    router = _router;
   }
 
   function addStrategy(IStrategy strategy, address[] calldata components) onlyOwner external {
