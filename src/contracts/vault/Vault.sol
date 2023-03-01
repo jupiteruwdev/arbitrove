@@ -97,7 +97,7 @@ contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
     uint8 v;
   }
 
-  function withdrawal(WithdrawalParams memory params) external payable {
+  function withdraw(WithdrawalParams memory params) external payable {
     WithdrawalFeeParams memory withdrawalFeeParams = WithdrawalFeeParams({
       cpu: params.cpu,
       vault: this,
@@ -122,8 +122,10 @@ contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
     debt[coin] += amount;
   }
 
-  function claimDebt() external {
+  function claimDebt(address coin, uint256 amount) external {
     require(msg.sender == addressRegistry.router());
+    debt[coin] -= amount;
+    require(IERC20(coin).transfer(msg.sender, amount));
   }
 
   function approveStrategy(IStrategy strategy, address coin, uint256 amount) external onlyOwner {
@@ -135,6 +137,10 @@ contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
     require(addressRegistry.getStrategyWhitelisted(strategy));
     (bool depositSuccess,) = address(strategy).call{value: amount}("");
     require(depositSuccess, "Deposit failed");
+  }
+
+  function rebalance(address coin, uint256 amount) external onlyOwner {
+    require(IERC20(coin).transfer(msg.sender, amount));
   }
 
   receive() external payable {
