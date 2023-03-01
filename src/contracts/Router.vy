@@ -54,14 +54,22 @@ def processMintRequest(dwp: DepositWithdrawalParams):
     assert msg.sender == self.owner
     assert self.lock
     mr: MintRequest = self.mintQueue.pop()
+    assert block.timestamp < mr.expire
+    assert mr.inputTokenAmount == dwp._amount
     before_balance: uint256 = IERC20(self.vault).balanceOf(self)
     IVault(self.vault).deposit(dwp)
     after_balance: uint256 = IERC20(self.vault).balanceOf(self)
     delta: uint256 = after_balance - before_balance
     assert delta > mr.minAlpAmount
     mr.coin.transferFrom(self, self.vault, mr.inputTokenAmount)
-    IERC20(self.vault).transferFrom(self, mr.requester, delta)
+    IERC20(self.vault).transferFrom(self, mr.requester, mr.minAlpAmount)
 
+@external
+def refundMintRequest():
+    assert msg.sender == self.owner
+    assert self.lock
+    mr: MintRequest = self.mintQueue.pop()
+    assert mr.coin.transferFrom(self, msg.sender, mr.inputTokenAmount)
 
 # request vault to burn ALP tokens and mint debt tokens to requester afterwards.
 @external 
@@ -69,6 +77,8 @@ def processBurnRequest(dwp: DepositWithdrawalParams):
     assert msg.sender == self.owner
     assert self.lock
     br: BurnRequest = self.burnQueue.pop()
+    assert block.timestamp < br.expire
+    assert br.outputTokenAmount == dwp._amount
     before_balance: uint256 = IERC20(self.vault).balanceOf(self)
     IVault(self.vault).withdraw(dwp)
     after_balance: uint256 = IERC20(self.vault).balanceOf(self)
@@ -76,6 +86,13 @@ def processBurnRequest(dwp: DepositWithdrawalParams):
     assert delta < br.maxAlpAmount
     IVault(self.vault).claimDebt(dwp.cpu[dwp.coinPositionInCPU].coin, dwp._amount)
     br.coin.transferFrom(self, br.requester, br.outputTokenAmount)
+
+@external
+def refundBurnRequest():
+    assert msg.sender == self.owner
+    assert self.lock
+    br: BurnRequest = self.burnQueue.pop()
+    assert br.coin.transferFrom(self, msg.sender, br.maxAlpAmount)
 
 # lock submitting new requests before crunching queue
 @external 
