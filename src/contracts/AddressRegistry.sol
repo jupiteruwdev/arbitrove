@@ -6,7 +6,6 @@ import "@vault/IVault.sol";
 import "@vault/FeeOracle.sol";
 
 contract AddressRegistry is OwnableUpgradeable {
-  address public oracleSigner;
   IVault public vault;
   FeeOracle public feeOracle;
   address public router;
@@ -22,14 +21,12 @@ contract AddressRegistry is OwnableUpgradeable {
     return coinToStrategy[u];
   }
 
-  function getStrategyWhitelisted(IStrategy s) external view returns (bool) {
+  function getWhitelistedStrategies(IStrategy s) external view returns (bool) {
     return strategyWhitelist[s];
   }
   
-  function init(address _oracleSigner, IVault _vault, FeeOracle _feeOracle, address _router) initializer external {
+  function init(IVault _vault, FeeOracle _feeOracle, address _router) initializer external {
     __Ownable_init();
-    require(_oracleSigner != address(0));
-    oracleSigner = _oracleSigner;
     vault = _vault;
     feeOracle = _feeOracle;
     router = _router;

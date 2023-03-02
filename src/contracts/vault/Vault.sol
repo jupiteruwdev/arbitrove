@@ -29,7 +29,7 @@ contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
     __ERC20_init("ALP", "ALP");
     addressRegistry = _addressRegistry;
     require(msg.value >= 1e15);
-    _mint(msg.sender, 1e18);
+    _mint(msg.sender, msg.value);
   }
 
   function setCoinCapUSD(address coin, uint cap) external{
@@ -60,10 +60,6 @@ contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
     uint256 _amount;
     CoinPriceUSD[] cpu;
     uint256 expireTimestamp;
-    bytes32 nonce;
-    bytes32 r;
-    bytes32 s;
-    uint8 v;
   }
 
   function deposit(DepositParams memory params) external payable {
@@ -71,10 +67,6 @@ contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
       cpu: params.cpu,
       vault: this,
       expireTimestamp: params.expireTimestamp,
-      nonce: params.nonce,
-      r: params.r,
-      s: params.s,
-      v: params.v,
       position: params.coinPositionInCPU,
       amount: params._amount
     });
@@ -95,10 +87,6 @@ contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
     uint256 _amount;
     CoinPriceUSD[] cpu;
     uint256 expireTimestamp;
-    bytes32 nonce;
-    bytes32 r;
-    bytes32 s;
-    uint8 v;
   }
 
   function withdraw(WithdrawalParams memory params) external payable {
@@ -106,10 +94,6 @@ contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
       cpu: params.cpu,
       vault: this,
       expireTimestamp: params.expireTimestamp,
-      nonce: params.nonce,
-      r: params.r,
-      s: params.s,
-      v: params.v,
       position: params.coinPositionInCPU,
       amount: params._amount
     });
@@ -133,12 +117,12 @@ contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
   }
 
   function approveStrategy(IStrategy strategy, address coin, uint256 amount) external onlyOwner {
-    require(addressRegistry.getStrategyWhitelisted(strategy));
+    require(addressRegistry.getWhitelistedStrategies(strategy));
     IERC20(coin).approve(address(strategy), amount);
   }
 
   function depositETHToStrategy(IStrategy strategy, uint256 amount) external onlyOwner {
-    require(addressRegistry.getStrategyWhitelisted(strategy));
+    require(addressRegistry.getWhitelistedStrategies(strategy));
     (bool depositSuccess,) = address(strategy).call{value: amount}("");
     require(depositSuccess, "Deposit failed");
   }

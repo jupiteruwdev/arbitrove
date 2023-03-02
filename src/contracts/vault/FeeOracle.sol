@@ -14,7 +14,6 @@ contract FeeOracle is OwnableUpgradeable {
     AddressRegistry addressRegistry;
     CoinWeight[] targets;
     uint256 targetsLength;
-    mapping(bytes32 => bool) nonceActivated;
     uint256 maxFee;
     uint256 maxBonus;
 
@@ -60,11 +59,7 @@ contract FeeOracle is OwnableUpgradeable {
     function getCoinWeights(CoinWeightsParams memory params) isNormalizedWeightArray(weights) public returns(CoinWeight[] memory weights, uint256 tvlUSD10000X) {
         weights = new CoinWeight[](targets.length);
         require(block.timestamp < params.expireTimestamp, "Execution window passed");
-        require(!nonceActivated[params.nonce], "NOnce already activated");
-        // activate nonce
-        nonceActivated[params.nonce] = true;
         // verify signature
-        require(ecrecover(keccak256(abi.encode(params.cpu, address(params.vault), params.expireTimestamp, params.nonce)), params.v, params.r, params.s) == addressRegistry.oracleSigner(), "Signature verification failed");
         require(params.cpu.length == targets.length, "Oracle length error");
         for (uint256 i; i < targets.length;) {
             uint256 amount = params.vault.getAmountAcrossStrategies(targets[i].coin) - params.vault.debt(targets[i].coin);
@@ -97,11 +92,7 @@ contract FeeOracle is OwnableUpgradeable {
         CoinWeightsParams memory coinWeightParams = CoinWeightsParams({
             cpu: params.cpu,
             vault: params.vault,
-            expireTimestamp: params.expireTimestamp,
-            nonce: params.nonce,
-            r: params.r,
-            s: params.s,
-            v: params.v
+            expireTimestamp: params.expireTimestamp
         });
         (weights, tvlUSD10000X) = getCoinWeights(coinWeightParams);
         CoinWeight memory target = targets[params.position];
@@ -128,11 +119,7 @@ contract FeeOracle is OwnableUpgradeable {
         CoinWeightsParams memory coinWeightParams = CoinWeightsParams({
             cpu: params.cpu,
             vault: params.vault,
-            expireTimestamp: params.expireTimestamp,
-            nonce: params.nonce,
-            r: params.r,
-            s: params.s,
-            v: params.v
+            expireTimestamp: params.expireTimestamp
         });
         (weights, tvlUSD10000X) = getCoinWeights(coinWeightParams);
         CoinWeight memory target = targets[params.position];

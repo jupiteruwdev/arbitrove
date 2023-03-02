@@ -81,7 +81,6 @@ contract VyperDeployer {
 contract DeployFactory is Script, VyperDeployer {
     function run() external {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
-        address oracleSignerAddress = vm.envAddress("ORACLE_SIGNER_ADDRESS");
         // address someRandomUser = vm.addr(1);
         // vm.prank(someRandomUser);
         // vm.deal(someRandomUser, 1 ether);
@@ -90,7 +89,7 @@ contract DeployFactory is Script, VyperDeployer {
 
         FactoryArbitrove factory = new FactoryArbitrove();
         address routerAddress = deployContract("src/contracts/Router.vy");
-        AddressRegistry(factory.addressRegistryAddress()).init(oracleSignerAddress, IVault(factory.vaultAddress()), FeeOracle(factory.feeOracleAddress()), routerAddress);
+        AddressRegistry(factory.addressRegistryAddress()).init(IVault(factory.vaultAddress()), FeeOracle(factory.feeOracleAddress()), routerAddress);
         Vault(payable(factory.vaultAddress())).init{value: 1e15}(AddressRegistry(factory.addressRegistryAddress()));
         FeeOracle(factory.feeOracleAddress()).init(AddressRegistry(factory.addressRegistryAddress()), 20, 0);
 

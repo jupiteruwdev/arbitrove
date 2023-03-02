@@ -28,20 +28,12 @@ struct CoinWeightsParams {
     CoinPriceUSD[] cpu;
     IVault vault;
     uint256 expireTimestamp;
-    bytes32 nonce;
-    bytes32 r;
-    bytes32 s;
-    uint8 v;
 }
 
 struct DepositFeeParams {
     CoinPriceUSD[] cpu;
     IVault vault;
     uint256 expireTimestamp;
-    bytes32 nonce;
-    bytes32 r;
-    bytes32 s;
-    uint8 v;
     uint256 position;
     uint256 amount;
 }
@@ -51,10 +43,6 @@ struct WithdrawalFeeParams {
     CoinPriceUSD[] cpu;
     IVault vault;
     uint256 expireTimestamp;
-    bytes32 nonce;
-    bytes32 r;
-    bytes32 s;
-    uint8 v;
     uint256 position;
     uint256 amount;
 }
