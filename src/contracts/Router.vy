@@ -66,9 +66,9 @@ def processMintRequest(dwp: DepositWithdrawalParams):
 
 @external
 def refundMintRequest():
-    assert msg.sender == self.owner
     assert self.lock
     mr: MintRequest = self.mintQueue.pop()
+    assert msg.sender == self.owner or mr.expire < block.timestamp
     assert mr.coin.transferFrom(self, msg.sender, mr.inputTokenAmount)
 
 # request vault to burn ALP tokens and mint debt tokens to requester afterwards.
@@ -89,9 +89,9 @@ def processBurnRequest(dwp: DepositWithdrawalParams):
 
 @external
 def refundBurnRequest():
-    assert msg.sender == self.owner
     assert self.lock
     br: BurnRequest = self.burnQueue.pop()
+    assert msg.sender == self.owner or br.expire < block.timestamp
     assert br.coin.transferFrom(self, msg.sender, br.maxAlpAmount)
 
 # lock submitting new requests before crunching queue
