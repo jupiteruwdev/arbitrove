@@ -19,6 +19,9 @@
 
 Install vyper first before running deployment scripts
 
+## Test Vault
+> forge test -vv --ffi --match-contract VaultTest
+
 ## Deploy Single
 
 > forge create --rpc-url <your_rpc_url> --private-key <your_private_key> src/MyContract.sol:MyContract
