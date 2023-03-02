@@ -20,11 +20,15 @@ contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
   uint256 public blockCapUSD;
   mapping(address => uint) public debt;
 
+    constructor() {
+      _disableInitializers();
+    }
+
   function init(AddressRegistry _addressRegistry) initializer payable external {
     __Ownable_init();
     __ERC20_init("ALP", "ALP");
     addressRegistry = _addressRegistry;
-    require(msg.value >= 1e17);
+    require(msg.value >= 1e15);
     _mint(msg.sender, 1e18);
   }
 

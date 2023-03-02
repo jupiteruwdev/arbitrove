@@ -14,6 +14,10 @@ contract AddressRegistry is OwnableUpgradeable {
   mapping (IStrategy => bool) public strategyWhitelist;
   address[] public supportedCoinAddresses;
 
+  constructor() {
+    _disableInitializers();
+  }
+
   function getCoinToStrategy(address u) external view returns (IStrategy[] memory) {
     return coinToStrategy[u];
   }

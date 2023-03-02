@@ -18,6 +18,10 @@ contract FeeOracle is OwnableUpgradeable {
     uint256 maxFee;
     uint256 maxBonus;
 
+      constructor() {
+        _disableInitializers();
+    }
+
     modifier isNormalizedWeightArray(CoinWeight[] memory weights) {
         _;
         uint256 totalWeight = 0;
@@ -36,7 +40,7 @@ contract FeeOracle is OwnableUpgradeable {
         require(totalWeight <= 100, "Weight error 2");
     }
 
-    function init(AddressRegistry _addressRegistry, uint256 _maxFee, uint256 _maxBonus) external initializer onlyOwner {
+    function init(AddressRegistry _addressRegistry, uint256 _maxFee, uint256 _maxBonus) external initializer {
         __Ownable_init();
         addressRegistry = _addressRegistry;
         maxFee = _maxFee;

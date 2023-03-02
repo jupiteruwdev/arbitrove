@@ -14,7 +14,7 @@ contract FactoryArbitrove is Ownable {
 
     constructor() {
         AddressRegistry ar = new AddressRegistry();
-        ar.init(address(0), IVault(address(0)), FeeOracle(address(0)), address(0));
+        // ar.init(address(0), IVault(address(0)), FeeOracle(address(0)), address(0));
         TProxy arProxy = new TProxy(address(ar), address(this), "");
         addressRegistryAddress = address(arProxy);
         Vault v = new Vault();
