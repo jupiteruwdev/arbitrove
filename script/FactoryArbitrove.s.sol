@@ -8,9 +8,11 @@ interface _CheatCodes {
 }
 
 contract VyperDeployer {
-
     /// @notice Initializes cheat codes in order to use ffi to compile Vyper contracts
-    _CheatCodes cheatCodes = _CheatCodes(address(bytes20(uint160(uint256(keccak256("hevm cheat code"))))));
+    _CheatCodes cheatCodes =
+        _CheatCodes(
+            address(bytes20(uint160(uint256(keccak256("hevm cheat code")))))
+        );
 
     ///@notice Compiles a Vyper contract and returns the address that the contract was deployeod to
     ///@notice If deployment fails, an error will be thrown
@@ -78,7 +80,7 @@ contract VyperDeployer {
     }
 }
 
-struct MintRequest{
+struct MintRequest {
     uint256 inputTokenAmount;
     uint256 minAlpAmount;
     IERC20 coin;
@@ -86,9 +88,40 @@ struct MintRequest{
     uint256 expire;
 }
 
+struct BurnRequest {
+    uint256 maxAlpAmount;
+    uint256 outputTokenAmount;
+    IERC20 coin;
+    address requester;
+    uint256 expire;
+}
+
+struct DepositWithdrawalParams {
+    uint256 coinPositionInCPU;
+    uint256 _amount;
+    CoinPriceUSD[] cpu;
+    uint256 expireTimestamp;
+}
+
 interface Router {
     function submitMintRequest(MintRequest calldata mr) external;
+
+    function submitBurnRequest(BurnRequest calldata br) external;
+
+    function processMintRequest(DepositWithdrawalParams calldata dwp) external;
+
+    function processBurnRequest(DepositWithdrawalParams calldata dwp) external;
+
+    function cancelMintRequest(bool refund) external;
+
+    function acquireLock() external;
+
+    function releaseLock() external;
+
+    function rescueStuckTokens(IERC20 token, uint256 amount) external;
+
     function owner() external view returns (address);
+
     function initialize(address, address) external;
 }
 
@@ -103,10 +136,23 @@ contract DeployFactory is Script, VyperDeployer {
 
         FactoryArbitrove factory = new FactoryArbitrove();
         address routerAddress = deployContract("src/contracts/Router.vy");
-        Router(routerAddress).initialize(factory.vaultAddress(), factory.addressRegistryAddress());
-        AddressRegistry(factory.addressRegistryAddress()).init(IVault(factory.vaultAddress()), FeeOracle(factory.feeOracleAddress()), routerAddress);
-        Vault(payable(factory.vaultAddress())).init{value: 1e15}(AddressRegistry(factory.addressRegistryAddress()));
-        FeeOracle(factory.feeOracleAddress()).init(AddressRegistry(factory.addressRegistryAddress()), 20, 0);
+        Router(routerAddress).initialize(
+            factory.vaultAddress(),
+            factory.addressRegistryAddress()
+        );
+        AddressRegistry(factory.addressRegistryAddress()).init(
+            IVault(factory.vaultAddress()),
+            FeeOracle(factory.feeOracleAddress()),
+            routerAddress
+        );
+        Vault(payable(factory.vaultAddress())).init{value: 1e15}(
+            AddressRegistry(factory.addressRegistryAddress())
+        );
+        FeeOracle(factory.feeOracleAddress()).init(
+            AddressRegistry(factory.addressRegistryAddress()),
+            20,
+            0
+        );
 
         vm.stopBroadcast();
     }

@@ -7,7 +7,6 @@ import "@/AddressRegistry.sol";
 import "@/TProxy.sol";
 
 contract FactoryArbitrove is Ownable {
-
     address public addressRegistryAddress;
     address public vaultAddress;
     address public feeOracleAddress;
@@ -25,7 +24,10 @@ contract FactoryArbitrove is Ownable {
         feeOracleAddress = address(fOProxy);
     }
 
-    function upgradeImplementation(TProxy proxy, address newImplementation) external onlyOwner {
+    function upgradeImplementation(TProxy proxy, address newImplementation)
+        external
+        onlyOwner
+    {
         proxy.upgradeTo(newImplementation);
     }
 }

@@ -1,4 +1,8 @@
-# @version 0.3.8
+# @version 0.3.7
+
+struct CoinPriceUSD:
+    coin: address
+    price: uint256
 
 struct DepositWithdrawalParams:
     coinPositionInCPU: uint256
@@ -32,10 +36,6 @@ struct BurnRequest:
     coin: IERC20
     requester: address
     expire: uint256
-
-struct CoinPriceUSD:
-    coin: address
-    price: uint256
 
 mintQueue: DynArray[MintRequest, 200]
 burnQueue: DynArray[BurnRequest, 200]
