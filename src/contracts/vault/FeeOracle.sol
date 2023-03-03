@@ -21,8 +21,7 @@ contract FeeOracle is OwnableUpgradeable {
         _disableInitializers();
     }
 
-    modifier isNormalizedWeightArray(CoinWeight[] memory weights) {
-        _;
+    function isNormalizedWeightArray(CoinWeight[] memory weights) internal {
         uint256 totalWeight = 0;
         uint256 j = 0;
         for (uint i; i < weights.length;) {
@@ -35,7 +34,7 @@ contract FeeOracle is OwnableUpgradeable {
             }
         }
         // compensate for rounding errors
-        //require(totalWeight >= 100 - j, "Weight error");
+        require(totalWeight >= 100 - j, "Weight error");
         require(totalWeight <= 100, "Weight error 2");
     }
 
@@ -57,7 +56,7 @@ contract FeeOracle is OwnableUpgradeable {
         return _targets;
     }
 
-    function setTargets(CoinWeight[] memory weights) isNormalizedWeightArray(weights) onlyOwner external {
+    function setTargets(CoinWeight[] memory weights) onlyOwner external {
         targetsLength = weights.length;
         for (uint i; i < weights.length;) {
             targets[i] = weights[i];
@@ -65,9 +64,10 @@ contract FeeOracle is OwnableUpgradeable {
                 ++i;
             }
         }
+        isNormalizedWeightArray(weights);
     }
 
-    function getCoinWeights(CoinWeightsParams memory params) isNormalizedWeightArray(weights) public returns(CoinWeight[] memory weights, uint256 tvlUSD10000X) {
+    function getCoinWeights(CoinWeightsParams memory params) public returns(CoinWeight[] memory weights, uint256 tvlUSD10000X) {
         weights = new CoinWeight[](targetsLength);
         require(block.timestamp < params.expireTimestamp, "Execution window passed");
         // verify signature
@@ -100,6 +100,7 @@ contract FeeOracle is OwnableUpgradeable {
                 i++;
             }
         }
+        isNormalizedWeightArray(weights);
     }
     
     function getDepositFee(DepositFeeParams memory params) external returns (int256 fee, CoinWeight[] memory weights, uint256 tvlUSD10000X) {

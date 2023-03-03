@@ -20,12 +20,14 @@ interface AddressRegistry:
 interface IERC20:
     def transferFrom(a: address, b: address, c: uint256) -> bool: nonpayable
     def balanceOf(a: address) -> uint256: view
+    def transfer(a: address, c: uint256) -> bool: nonpayable
 
 interface IVault:
     def deposit(dwp: DepositWithdrawalParams): payable
     def withdraw(dwp: DepositWithdrawalParams): payable
     def claimDebt(a: address, b: uint256): nonpayable
     def transferFrom(a: address, b: address, c: uint256) -> bool: nonpayable
+    
 
 struct MintRequest:
     inputTokenAmount: uint256
@@ -88,8 +90,8 @@ def processMintRequest(dwp: OracleParams):
     if mr.coin.address == convert(0, address):
         send(self.vault, mr.inputTokenAmount)
     else:
-        assert mr.coin.transferFrom(self, self.vault, mr.inputTokenAmount)
-    assert IERC20(self.vault).transferFrom(self, mr.requester, mr.minAlpAmount)
+        assert mr.coin.transfer(self.vault, mr.inputTokenAmount)
+    assert IERC20(self.vault).transfer(mr.requester, mr.minAlpAmount)
 
 @external
 @nonreentrant("router")
@@ -101,7 +103,7 @@ def cancelMintRequest(refund: bool):
         if mr.coin.address == convert(0, address):
             send(mr.requester, mr.inputTokenAmount)
         else:
-            assert mr.coin.transferFrom(self, msg.sender, mr.inputTokenAmount)
+            assert mr.coin.transfer(msg.sender, mr.inputTokenAmount)
 
 # request vault to burn ALP tokens and mint debt tokens to requester afterwards.
 @external 
@@ -130,7 +132,7 @@ def processBurnRequest(dwp: OracleParams):
     if br.coin.address == convert(0, address):
         send(br.requester, br.outputTokenAmount)
     else:
-        br.coin.transferFrom(self, br.requester, br.outputTokenAmount)
+        br.coin.transfer(br.requester, br.outputTokenAmount)
 
 @external
 @nonreentrant("router")
@@ -138,7 +140,7 @@ def refundBurnRequest():
     assert self.lock
     br: BurnRequest = self.burnQueue.pop()
     assert msg.sender == self.owner or br.expire < block.timestamp
-    assert IERC20(self.vault).transferFrom(self, msg.sender, br.maxAlpAmount)
+    assert IERC20(self.vault).transfer(msg.sender, br.maxAlpAmount)
 
 # lock submitting new requests before crunching queue
 @external 
