@@ -12,12 +12,12 @@ import "@structs/structs.sol";
 contract FeeOracle is OwnableUpgradeable {
     address public weth_usdcPair;
     AddressRegistry addressRegistry;
-    CoinWeight[] targets;
+    CoinWeight[] public targets;
     uint256 targetsLength;
     uint256 maxFee;
     uint256 maxBonus;
 
-      constructor() {
+    constructor() {
         _disableInitializers();
     }
 
@@ -46,12 +46,17 @@ contract FeeOracle is OwnableUpgradeable {
         maxBonus = _maxBonus;
     }
 
+    function getTargets() external view returns(CoinWeight[] memory) {
+        return targets;
+    }
+
     function setTargets(CoinWeight[] memory weights) isNormalizedWeightArray(weights) onlyOwner external {
         targetsLength = weights.length;
         for (uint i; i < weights.length;) {
-            targets[i] = weights[i];
+            if (targets.length > i) targets[i] = weights[i];
+            else targets.push(weights[i]);
             unchecked {
-                i++;
+                ++i;
             }
         }
     }
@@ -63,7 +68,7 @@ contract FeeOracle is OwnableUpgradeable {
         require(params.cpu.length == targets.length, "Oracle length error");
         for (uint256 i; i < targets.length;) {
             uint256 amount = params.vault.getAmountAcrossStrategies(targets[i].coin) - params.vault.debt(targets[i].coin);
-            require(params.cpu[i].coin == targets[i].coin, "Oracle order error");
+            require(params.cpu[i].coin == targets[i].coin, "Oracle order error 1");
             weights[i] = CoinWeight(params.cpu[i].coin, amount);
             unchecked {
                 i++;
@@ -73,14 +78,14 @@ contract FeeOracle is OwnableUpgradeable {
         // find max
         tvlUSD10000X = 0;
         for (uint256 i; i < targets.length;) {
-            require(params.cpu[i].coin == targets[i].coin, "Oracle order error");
+            require(params.cpu[i].coin == targets[i].coin, "Oracle order error 2");
             tvlUSD10000X += weights[i].weight * params.cpu[i].price / 10**ERC20(params.cpu[i].coin).decimals();
             unchecked {
                 i++;
             }
         }
         for (uint256 i; i < targets.length;) {
-            require(params.cpu[i].coin == weights[i].coin, "Oracle order error");
+            require(params.cpu[i].coin == weights[i].coin, "Oracle order error 3");
             weights[i].weight = weights[i].weight * params.cpu[i].price * 100 / tvlUSD10000X / 10**ERC20(params.cpu[i].coin).decimals();
             unchecked {
                 i++;
@@ -97,7 +102,7 @@ contract FeeOracle is OwnableUpgradeable {
         (weights, tvlUSD10000X) = getCoinWeights(coinWeightParams);
         CoinWeight memory target = targets[params.position];
         CoinWeight memory currentCoinWeight = weights[params.position];
-        require(target.coin == currentCoinWeight.coin, "Oracle order error");
+        require(target.coin == currentCoinWeight.coin, "Oracle order error 4");
         uint256 depositValueUSD10000X = params.amount * params.cpu[params.position].price / 10**ERC20(params.cpu[params.position].coin).decimals();
         uint256 newWeight = (currentCoinWeight.weight * tvlUSD10000X / 100 + depositValueUSD10000X) * 100 / (tvlUSD10000X + depositValueUSD10000X);
         // calculate distance
@@ -124,7 +129,7 @@ contract FeeOracle is OwnableUpgradeable {
         (weights, tvlUSD10000X) = getCoinWeights(coinWeightParams);
         CoinWeight memory target = targets[params.position];
         CoinWeight memory currentCoinWeight = weights[params.position];
-        require(target.coin == currentCoinWeight.coin, "Oracle order error");
+        require(target.coin == currentCoinWeight.coin, "Oracle order error 5");
         uint256 withdrawalValueUSD10000X = params.amount * params.cpu[params.position].price / 10**ERC20(params.cpu[params.position].coin).decimals();
         uint256 newWeight = (currentCoinWeight.weight * tvlUSD10000X / 100 - withdrawalValueUSD10000X) * 100 / (tvlUSD10000X + withdrawalValueUSD10000X);
         // calculate distance
