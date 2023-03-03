@@ -1,4 +1,4 @@
-# @version 0.3.7
+# @version 0.3.8
 
 struct CoinPriceUSD:
     coin: address
@@ -7,6 +7,10 @@ struct CoinPriceUSD:
 struct DepositWithdrawalParams:
     coinPositionInCPU: uint256
     _amount: uint256
+    cpu: DynArray[CoinPriceUSD, 50]
+    expireTimestamp: uint256
+
+struct OracleParams:
     cpu: DynArray[CoinPriceUSD, 50]
     expireTimestamp: uint256
 
@@ -51,17 +55,28 @@ def initialize(_vault: address, _addressRegistry: AddressRegistry):
     self.vault = _vault
     self.addressRegistry = _addressRegistry
 
+@internal
+def getCoinPositionInCPU(cpu: DynArray[CoinPriceUSD, 50], coin: address) -> uint256:
+    for i in range(50):
+        if i < len(cpu) and cpu[i].coin == coin:
+            return i
+    raise "False"
+
 # request vault to mint ALP tokens and sends payment tokens to vault afterwards
 @external 
 @nonreentrant("router")
-def processMintRequest(dwp: DepositWithdrawalParams):
+def processMintRequest(dwp: OracleParams):
     assert msg.sender == self.owner
     assert self.lock
     mr: MintRequest = self.mintQueue.pop()
     assert block.timestamp < mr.expire
-    assert mr.inputTokenAmount == dwp._amount
     before_balance: uint256 = IERC20(self.vault).balanceOf(self)
-    IVault(self.vault).deposit(dwp)
+    IVault(self.vault).deposit(DepositWithdrawalParams({
+        coinPositionInCPU: self.getCoinPositionInCPU(dwp.cpu, mr.coin.address),
+        _amount: mr.inputTokenAmount,
+        cpu: dwp.cpu,
+        expireTimestamp: dwp.expireTimestamp
+    }))
     after_balance: uint256 = IERC20(self.vault).balanceOf(self)
     delta: uint256 = after_balance - before_balance
     assert delta > mr.minAlpAmount
@@ -86,18 +101,23 @@ def cancelMintRequest(refund: bool):
 # request vault to burn ALP tokens and mint debt tokens to requester afterwards.
 @external 
 @nonreentrant("router")
-def processBurnRequest(dwp: DepositWithdrawalParams):
+def processBurnRequest(dwp: OracleParams):
     assert msg.sender == self.owner
     assert self.lock
     br: BurnRequest = self.burnQueue.pop()
     assert block.timestamp < br.expire
-    assert br.outputTokenAmount == dwp._amount
     before_balance: uint256 = IERC20(self.vault).balanceOf(self)
-    IVault(self.vault).withdraw(dwp)
+    coinPositionInCPU: uint256 = self.getCoinPositionInCPU(dwp.cpu, br.coin.address)
+    IVault(self.vault).withdraw(DepositWithdrawalParams({
+        coinPositionInCPU: coinPositionInCPU,
+        _amount: br.outputTokenAmount,
+        cpu: dwp.cpu,
+        expireTimestamp: dwp.expireTimestamp
+    }))
     after_balance: uint256 = IERC20(self.vault).balanceOf(self)
     delta: uint256 = before_balance - after_balance
     assert delta < br.maxAlpAmount
-    IVault(self.vault).claimDebt(dwp.cpu[dwp.coinPositionInCPU].coin, dwp._amount)
+    IVault(self.vault).claimDebt(dwp.cpu[coinPositionInCPU].coin, br.outputTokenAmount)
     if br.coin.address == convert(0, address):
         send(br.requester, br.outputTokenAmount)
     else:

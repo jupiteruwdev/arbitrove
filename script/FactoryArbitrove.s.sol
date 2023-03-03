@@ -103,14 +103,19 @@ struct DepositWithdrawalParams {
     uint256 expireTimestamp;
 }
 
+struct OracleParams {
+    CoinPriceUSD[] cpu;
+    uint256 expireTimestamp;
+}
+
 interface Router {
     function submitMintRequest(MintRequest calldata mr) external;
 
     function submitBurnRequest(BurnRequest calldata br) external;
 
-    function processMintRequest(DepositWithdrawalParams calldata dwp) external;
+    function processMintRequest(OracleParams calldata dwp) external;
 
-    function processBurnRequest(DepositWithdrawalParams calldata dwp) external;
+    function processBurnRequest(OracleParams calldata dwp) external;
 
     function cancelMintRequest(bool refund) external;
 
