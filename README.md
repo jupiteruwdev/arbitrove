@@ -1,4 +1,9 @@
-# Folder structure
+# Arbitrove
+
+# General
+Arbitrove Protocol is a yield-bearing index protocol that allows people to one-click mint an index that give exposure to a batch of strategies consist of yield-bearing assets. Unlike traditional index protocol that only hold tokens, Arbitrove Protocol dynamically deploy capital to strategies. 
+
+## Folder structure
 ```
 .
 ├── src/
@@ -14,6 +19,33 @@
 ```
 
 `FactoryTokens.sol` under `contracts` is also out of scope for Arbitrove audit.
+
+# Core Contract Overview
+
+#### FactoryArbitrove.sol
+
+`FactoryArbitrove.sol` is responsible for deploying and managing instances of the Vault and AddressRegistry contracts.
+
+#### Router.vy
+
+`Router.vy` is the single point of entry for users to interact with the Vault. Users can deposit and withdraw assets from the Vault through the Router. To do so, the user must first approve the Router and submit a `MintRequest` or `BurnRequest` to the Router. The request will be stored into its respective queue. The oracle will then call the Router to process the request or refund the user if the request is invalid.
+
+#### Vault.sol
+
+`Vault.sol` facilitates the deposit and withdrawal of funds and helps manage assets across different strategies. It is interacted with through the Router.
+
+#### Strategy.sol
+
+`Strategy.sol` is an example strategy. Down the line, we will have more strategies that generally fall in the range of single-side staking, yield farming, and lending.
+
+#### AddressRegistry.sol
+
+`AddressRegistry.sol` is used to manage the mapping of strategies to supported coins. 
+
+#### FeeOracle.sol
+
+`FeeOracle.sol` implements a fee oracle that provides deposit and withdrawal fees to be used by the Vault contract. The fees are based on the current weight of a coin in the vault compared to its target weight.
+
 
 # General compiling and deployment
 

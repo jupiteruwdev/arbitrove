@@ -61,7 +61,6 @@ contract VaultTest is Test, VyperDeployer {
 
     function testDeposit() public {
         address someRandomUser = vm.addr(1);
-
         uint256 initialBalance = jonesToken.balanceOf(address(someRandomUser));
         assertEq(initialBalance, 1e18);
         jonesToken.approve(address(router), 1e18);
@@ -78,8 +77,5 @@ contract VaultTest is Test, VyperDeployer {
         assertEq(jonesToken.balanceOf(someRandomUser), initialBalance - 1e18);
         assertEq(jonesToken.balanceOf(address(router)), 1e18);
         assertEq(jonesToken.balanceOf(address(vault)), 0);
-
-        CoinPriceUSD[] memory cpu = new CoinPriceUSD[](1);
-        cpu[0] = CoinPriceUSD(address(jonesToken), 1e18);
     }
 }
