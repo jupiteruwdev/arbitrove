@@ -77,9 +77,7 @@ contract VaultTest is Test, VyperDeployer {
         assertEq(jonesToken.balanceOf(someRandomUser), initialBalance - 1e18);
         assertEq(jonesToken.balanceOf(address(router)), 1e18);
         assertEq(jonesToken.balanceOf(address(vault)), 0);
-    }
 
-    function testProcessMintRequest() public {
         CoinPriceUSD[] memory x = new CoinPriceUSD[](2);
         x[0] = CoinPriceUSD(address(0), 1600e4);
         x[1] = CoinPriceUSD(address(jonesToken), 20e4);
@@ -92,4 +90,5 @@ contract VaultTest is Test, VyperDeployer {
         );
         assertEq(jonesToken.balanceOf(address(router)), 0);
     }
+
 }

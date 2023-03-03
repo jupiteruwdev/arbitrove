@@ -67,9 +67,13 @@ def getCoinPositionInCPU(cpu: DynArray[CoinPriceUSD, 50], coin: address) -> uint
 @nonreentrant("router")
 def processMintRequest(dwp: OracleParams):
     assert msg.sender == self.owner
-    assert self.lock
+    if not self.lock:
+        raise "Not locked"
+    if not len(self.mintQueue) > 0:
+        raise "No mint request"
     mr: MintRequest = self.mintQueue.pop()
-    assert block.timestamp < mr.expire
+    if block.timestamp > mr.expire:
+        raise "Request expired"
     before_balance: uint256 = IERC20(self.vault).balanceOf(self)
     IVault(self.vault).deposit(DepositWithdrawalParams({
         coinPositionInCPU: self.getCoinPositionInCPU(dwp.cpu, mr.coin.address),
@@ -79,7 +83,8 @@ def processMintRequest(dwp: OracleParams):
     }))
     after_balance: uint256 = IERC20(self.vault).balanceOf(self)
     delta: uint256 = after_balance - before_balance
-    assert delta > mr.minAlpAmount
+    if delta < mr.minAlpAmount:
+        raise "Not enough ALP minted"
     if mr.coin.address == convert(0, address):
         send(self.vault, mr.inputTokenAmount)
     else:
@@ -102,10 +107,13 @@ def cancelMintRequest(refund: bool):
 @external 
 @nonreentrant("router")
 def processBurnRequest(dwp: OracleParams):
-    assert msg.sender == self.owner
-    assert self.lock
+    if not self.lock:
+        raise "Not locked"
+    if not len(self.burnQueue) > 0:
+        raise "No burn request"
     br: BurnRequest = self.burnQueue.pop()
-    assert block.timestamp < br.expire
+    if block.timestamp > br.expire:
+        raise "Request expired"
     before_balance: uint256 = IERC20(self.vault).balanceOf(self)
     coinPositionInCPU: uint256 = self.getCoinPositionInCPU(dwp.cpu, br.coin.address)
     IVault(self.vault).withdraw(DepositWithdrawalParams({
@@ -116,7 +124,8 @@ def processBurnRequest(dwp: OracleParams):
     }))
     after_balance: uint256 = IERC20(self.vault).balanceOf(self)
     delta: uint256 = before_balance - after_balance
-    assert delta < br.maxAlpAmount
+    if delta > br.maxAlpAmount:
+        raise "Too much ALP burned"
     IVault(self.vault).claimDebt(dwp.cpu[coinPositionInCPU].coin, br.outputTokenAmount)
     if br.coin.address == convert(0, address):
         send(br.requester, br.outputTokenAmount)
