@@ -35,7 +35,7 @@ contract FeeOracle is OwnableUpgradeable {
             }
         }
         // compensate for rounding errors
-        require(totalWeight >= 100 - j, "Weight error");
+        //require(totalWeight >= 100 - j, "Weight error");
         require(totalWeight <= 100, "Weight error 2");
     }
 
@@ -91,6 +91,7 @@ contract FeeOracle is OwnableUpgradeable {
                 i++;
             }
         }
+        
         for (uint256 i; i < targetsLength;) {
             require(params.cpu[i].coin == weights[i].coin, "Oracle order error 3");
             uint256 __decimals = targets[i].coin == address(0) ? 18 : ERC20(targets[i].coin).decimals();

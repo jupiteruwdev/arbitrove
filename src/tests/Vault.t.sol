@@ -49,7 +49,7 @@ contract VaultTest is Test, VyperDeployer {
         vault = Vault(payable(factory.vaultAddress()));
         jonesToken = new MockERC20("Jones Token", "JONES");
         jonesToken.mint(someRandomUser, 1e18);
-        jonesToken.mint(address(vault), 1e16);
+        jonesToken.mint(address(vault), 1e19);
         cw[0] = CoinWeight(address(0), 50);
         cw[1] = CoinWeight(address(jonesToken), 50);
         FeeOracle(factory.feeOracleAddress()).setTargets(cw);
