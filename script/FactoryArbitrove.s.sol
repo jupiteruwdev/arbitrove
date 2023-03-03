@@ -78,6 +78,20 @@ contract VyperDeployer {
     }
 }
 
+struct MintRequest{
+    uint256 inputTokenAmount;
+    uint256 minAlpAmount;
+    IERC20 coin;
+    address requester;
+    uint256 expire;
+}
+
+interface Router {
+    function submitMintRequest(MintRequest calldata mr) external;
+    function owner() external view returns (address);
+    function initialize(address, address) external;
+}
+
 contract DeployFactory is Script, VyperDeployer {
     function run() external {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
@@ -89,6 +103,7 @@ contract DeployFactory is Script, VyperDeployer {
 
         FactoryArbitrove factory = new FactoryArbitrove();
         address routerAddress = deployContract("src/contracts/Router.vy");
+        Router(routerAddress).initialize(factory.vaultAddress(), factory.addressRegistryAddress());
         AddressRegistry(factory.addressRegistryAddress()).init(IVault(factory.vaultAddress()), FeeOracle(factory.feeOracleAddress()), routerAddress);
         Vault(payable(factory.vaultAddress())).init{value: 1e15}(AddressRegistry(factory.addressRegistryAddress()));
         FeeOracle(factory.feeOracleAddress()).init(AddressRegistry(factory.addressRegistryAddress()), 20, 0);

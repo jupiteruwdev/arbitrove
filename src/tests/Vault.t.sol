@@ -7,19 +7,7 @@ import "@/FactoryArbitrove.sol";
 import "../../script/FactoryArbitrove.s.sol";
 import "@/strategy/Strategy.sol";
 
-struct MintRequest{
-    uint256 inputTokenAmount;
-    uint256 minAlpAmount;
-    IERC20 coin;
-    address requester;
-    uint256 expire;
-}
 
-interface Router {
-    function submitMintRequest(MintRequest calldata mr) external;
-    function owner() external view returns (address);
-    function initialize(address, address) external;
-}
 
 contract VaultTest is Test, VyperDeployer {
     Vault vault;
