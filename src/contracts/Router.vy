@@ -7,7 +7,7 @@ struct DepositWithdrawalParams:
     expireTimestamp: uint256
 
 interface AddressRegistry:
-    def coinToStrategy(a: address) -> DynArray[address,100]: view
+    def getCoinToStrategy(a: address) -> DynArray[address,100]: view
 
 interface IERC20:
     def transferFrom(a: address, b: address, c: uint256) -> bool: nonpayable
@@ -39,13 +39,14 @@ struct CoinPriceUSD:
 
 mintQueue: DynArray[MintRequest, 200]
 burnQueue: DynArray[BurnRequest, 200]
-owner: address
+owner: public(address)
 lock: bool
 vault: address
 addressRegistry: AddressRegistry
 
 @external
-def __init__(_vault: address, _addressRegistry: AddressRegistry):
+def initialize(_vault: address, _addressRegistry: AddressRegistry):
+    assert self.owner == empty(address)
     self.owner = msg.sender
     self.vault = _vault
     self.addressRegistry = _addressRegistry
@@ -125,7 +126,7 @@ def releaseLock():
 @nonreentrant("router")
 @payable
 def submitMintRequest(mr: MintRequest):
-    assert len(self.addressRegistry.coinToStrategy(mr.coin.address)) > 0
+    assert len(self.addressRegistry.getCoinToStrategy(mr.coin.address)) > 0
     assert self.lock == False
     assert mr.requester == msg.sender
     self.mintQueue.append(mr)
@@ -137,7 +138,7 @@ def submitMintRequest(mr: MintRequest):
 @external
 @nonreentrant("router")
 def submitBurnRequest(br: BurnRequest):
-    assert len(self.addressRegistry.coinToStrategy(br.coin.address)) > 0
+    assert len(self.addressRegistry.getCoinToStrategy(br.coin.address)) > 0
     assert self.lock == False
     assert br.requester == msg.sender
     self.burnQueue.append(br)

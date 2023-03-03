@@ -5,6 +5,7 @@ import "forge-std/Test.sol";
 import "@mocks/MockERC20.sol";
 import "@/FactoryArbitrove.sol";
 import "../../script/FactoryArbitrove.s.sol";
+import "@/strategy/Strategy.sol";
 
 struct MintRequest{
     uint256 inputTokenAmount;
@@ -16,12 +17,15 @@ struct MintRequest{
 
 interface Router {
     function submitMintRequest(MintRequest calldata mr) external;
+    function owner() external view returns (address);
+    function initialize(address, address) external;
 }
 
 contract VaultTest is Test, VyperDeployer {
     Vault vault;
     MockERC20 public jonesToken;
     Router router;
+    AddressRegistry ar;
 
     function setUp() public {
         address someRandomUser = vm.addr(1);
@@ -29,19 +33,28 @@ contract VaultTest is Test, VyperDeployer {
         vm.deal(someRandomUser, 1 ether);
 
         FactoryArbitrove factory = new FactoryArbitrove();
+        bytes memory sfd = abi.encode(factory.vaultAddress(), factory.addressRegistryAddress());
         router = Router(deployContract("src/contracts/Router.vy"));
-        AddressRegistry(factory.addressRegistryAddress()).init(IVault(factory.vaultAddress()), FeeOracle(factory.feeOracleAddress()), address(router));
+        router.initialize(factory.vaultAddress(), factory.addressRegistryAddress());
+        ar = AddressRegistry(factory.addressRegistryAddress());
+        ar.init(IVault(factory.vaultAddress()), FeeOracle(factory.feeOracleAddress()), address(router));
         Vault(payable(factory.vaultAddress())).init{value: 1e18}(AddressRegistry(factory.addressRegistryAddress()));
         FeeOracle(factory.feeOracleAddress()).init(AddressRegistry(factory.addressRegistryAddress()), 20, 0);
 
         vault = Vault(payable(factory.vaultAddress()));
         jonesToken = new MockERC20("Jones Token", "JONES");
         jonesToken.mint(someRandomUser, 1e18);
+        ExampleStrategy st = new ExampleStrategy();
+        address[] memory x= new address[](1);
+        x[0] = address(jonesToken);
+        AddressRegistry(factory.addressRegistryAddress()).addStrategy(st, x);
     }
 
     function test_setup() public {
         address someRandomUser = vm.addr(1);
         assertEq(vault.balanceOf(someRandomUser), 1e18);
+        assertEq(router.owner(), someRandomUser);
+        assertEq(ar.getCoinToStrategy(address(jonesToken)).length, 1);
     }
 
     function testDeposit() public {
