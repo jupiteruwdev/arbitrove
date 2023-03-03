@@ -73,8 +73,10 @@ contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
     require(msg.sender == addressRegistry.router());
     address coin = params.cpu[params.coinPositionInCPU].coin;
     uint256 amount = coin == address(0) ? msg.value : params._amount;
+    uint256 __decimals = coin == address(0) ? 18 : ERC20(coin).decimals();
     require(getAmountAcrossStrategies(coin) + amount < coinCap[coin], "Coin cap reached");
-    uint256 newTvlUSD10000X = params.cpu[params.coinPositionInCPU].price * params._amount / 10**ERC20(params.cpu[params.coinPositionInCPU].coin).decimals();
+    
+    uint256 newTvlUSD10000X = params.cpu[params.coinPositionInCPU].price * params._amount / __decimals;
     require(newTvlUSD10000X + blockCapCounter[block.number] < blockCapUSD, "Block cap reached");
     blockCapCounter[block.number] += newTvlUSD10000X;
     (int256 fee, , uint256 tvlUSD10000X) = addressRegistry.feeOracle().getDepositFee(depositFeeParams);
@@ -100,7 +102,8 @@ contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
     require(msg.sender == addressRegistry.router());
     address coin = params.cpu[params.coinPositionInCPU].coin;
     uint256 amount = coin == address(0) ? msg.value : params._amount;
-    uint256 lessTvlUSD10000X = params.cpu[params.coinPositionInCPU].price * params._amount / 10**ERC20(params.cpu[params.coinPositionInCPU].coin).decimals();
+    uint256 __decimals = coin == address(0) ? 18 : ERC20(coin).decimals();
+    uint256 lessTvlUSD10000X = params.cpu[params.coinPositionInCPU].price * params._amount / __decimals;
     require(lessTvlUSD10000X + blockCapCounter[block.number] < blockCapUSD, "Block cap reached");
     blockCapCounter[block.number] += lessTvlUSD10000X;
     require(getAmountAcrossStrategies(coin) + amount < coinCap[coin], "Coin cap reached");

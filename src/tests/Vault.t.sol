@@ -44,14 +44,15 @@ contract VaultTest is Test, VyperDeployer {
             0
         );
         CoinWeight[] memory cw = new CoinWeight[](2);
-        cw[0] = CoinWeight(address(0), 50);
-        cw[1] = CoinWeight(address(jonesToken), 50);
-        FeeOracle(factory.feeOracleAddress()).setTargets(cw);
+        
         feeOracle = FeeOracle(factory.feeOracleAddress());
         vault = Vault(payable(factory.vaultAddress()));
         jonesToken = new MockERC20("Jones Token", "JONES");
         jonesToken.mint(someRandomUser, 1e18);
         jonesToken.mint(address(vault), 1e16);
+        cw[0] = CoinWeight(address(0), 50);
+        cw[1] = CoinWeight(address(jonesToken), 50);
+        FeeOracle(factory.feeOracleAddress()).setTargets(cw);
         vault.setCoinCapUSD(address(jonesToken), 1000e18);
         vault.setBlockCap(100000e18);
         ExampleStrategy st = new ExampleStrategy();
@@ -96,13 +97,13 @@ contract VaultTest is Test, VyperDeployer {
         x[1] = CoinPriceUSD(address(jonesToken), 20e4);
         assertEq(feeOracle.getTargets()[0].coin, x[0].coin);
         router.acquireLock();
-        // router.processMintRequest(
-        //     OracleParams(
-        //         x,
-        //         block.timestamp + 1 days
-        //     )
-        // );
-        //assertEq(jonesToken.balanceOf(address(router)), 0);
+        router.processMintRequest(
+            OracleParams(
+                x,
+                block.timestamp + 1 days
+            )
+        );
+        assertEq(jonesToken.balanceOf(address(router)), 0);
     }
 
 }
