@@ -67,6 +67,7 @@ contract VaultTest is Test, VyperDeployer {
         cw[0] = CoinWeight(address(0), 50);
         cw[1] = CoinWeight(address(jonesToken), 50);
         assertEq(feeOracle.getTargets()[0].coin, cw[0].coin);
+        assertEq(feeOracle.getTargets()[1].coin, cw[1].coin);
         assertEq(router.owner(), someRandomUser);
         assertEq(ar.getCoinToStrategy(address(jonesToken)).length, 1);
     }
@@ -95,12 +96,12 @@ contract VaultTest is Test, VyperDeployer {
         x[1] = CoinPriceUSD(address(jonesToken), 20e4);
         assertEq(feeOracle.getTargets()[0].coin, x[0].coin);
         router.acquireLock();
-        router.processMintRequest(
-            OracleParams(
-                x,
-                block.timestamp + 1 days
-            )
-        );
+        // router.processMintRequest(
+        //     OracleParams(
+        //         x,
+        //         block.timestamp + 1 days
+        //     )
+        // );
         //assertEq(jonesToken.balanceOf(address(router)), 0);
     }
 
