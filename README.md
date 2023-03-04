@@ -1,5 +1,7 @@
 # Arbitrove
 
+> Solidity Compiler Version: `0.8.17`; Vyper Compiler Version: `0.3.7`
+
 # General
 Arbitrove Protocol is a yield-bearing index protocol that allows people to one-click mint an index that give exposure to a batch of strategies consist of yield-bearing assets. Unlike traditional index protocol that only hold tokens, Arbitrove Protocol dynamically deploy capital to strategies. 
 
