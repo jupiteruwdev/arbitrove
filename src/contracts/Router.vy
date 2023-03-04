@@ -179,7 +179,7 @@ def submitBurnRequest(br: BurnRequest):
 @nonreentrant("router")
 def rescueStuckTokens(token: IERC20, amount: uint256):
     assert msg.sender == self.owner
-    assert token.transferFrom(self, self.owner, amount)
+    assert token.transfer(self.owner, amount)
 
 @external
 def suicide():
