@@ -100,4 +100,32 @@ contract VaultTest is Test, VyperDeployer {
         router.processMintRequest(OracleParams(x, block.timestamp + 1 days));
         assertEq(jonesToken.balanceOf(address(router)), 0);
     }
+
+    function testRedeem() public {
+        // address someRandomUser = vm.addr(1);
+        // uint256 initialBalance = jonesToken.balanceOf(address(someRandomUser));
+        // assertEq(initialBalance, 0);
+        // jonesToken.approve(address(router), 1e18);
+        // router.submitBurnRequest(
+        //     BurnRequest(
+        //         1e18,
+        //         1102011930037,
+        //         jonesToken,
+        //         someRandomUser,
+        //         block.timestamp + 1 days
+        //     )
+        // );
+
+        // assertEq(jonesToken.balanceOf(someRandomUser), initialBalance - 1e18);
+        // assertEq(jonesToken.balanceOf(address(router)), 1e18);
+        // assertEq(jonesToken.balanceOf(address(vault)), 1e19);
+
+        // CoinPriceUSD[] memory x = new CoinPriceUSD[](2);
+        // x[0] = CoinPriceUSD(address(0), 1600e4);
+        // x[1] = CoinPriceUSD(address(jonesToken), 20e4);
+        // assertEq(feeOracle.getTargets()[0].coin, x[0].coin);
+        // router.acquireLock();
+        // router.processMintRequest(OracleParams(x, block.timestamp + 1 days));
+        // assertEq(jonesToken.balanceOf(address(router)), 0);
+    }
 }
