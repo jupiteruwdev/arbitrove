@@ -9,8 +9,6 @@ import "@strategy/IStrategy.sol";
 import "@/AddressRegistry.sol";
 import "@structs/structs.sol";
 
-// TODO: add snapshot capabilities
-
 contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
 
   AddressRegistry addressRegistry;
@@ -24,7 +22,7 @@ contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
       _disableInitializers();
     }
 
-  function init(AddressRegistry _addressRegistry) initializer payable external {
+  function init829(AddressRegistry _addressRegistry) initializer payable external {
     __Ownable_init();
     __ERC20_init("ALP", "ALP");
     addressRegistry = _addressRegistry;
@@ -32,11 +30,15 @@ contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
     _mint(msg.sender, msg.value);
   }
 
-  function setCoinCapUSD(address coin, uint cap) external{
+  function setAddressRegistry(AddressRegistry _addressRegistry) external onlyOwner {
+    addressRegistry = _addressRegistry;
+  }
+
+  function setCoinCapUSD(address coin, uint cap) external onlyOwner{
     coinCap[coin] = cap;
   }
 
-  function setBlockCap(uint cap) external{
+  function setBlockCap(uint cap) external onlyOwner {
     blockCapUSD = cap;
   }
 

@@ -150,7 +150,7 @@ contract DeployFactory is Script, VyperDeployer {
             FeeOracle(factory.feeOracleAddress()),
             routerAddress
         );
-        Vault(payable(factory.vaultAddress())).init{value: 1e15}(
+        Vault(payable(factory.vaultAddress())).init829{value: 1e15}(
             AddressRegistry(factory.addressRegistryAddress())
         );
         FeeOracle(factory.feeOracleAddress()).init(

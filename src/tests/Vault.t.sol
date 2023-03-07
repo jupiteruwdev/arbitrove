@@ -20,6 +20,10 @@ contract VaultTest is Test, VyperDeployer {
         vm.deal(someRandomUser, 1 ether);
 
         FactoryArbitrove factory = new FactoryArbitrove();
+        factory.upgradeImplementation(
+            TProxy(payable(factory.vaultAddress())),
+            address(new Vault())
+        );
         bytes memory sfd = abi.encode(
             factory.vaultAddress(),
             factory.addressRegistryAddress()
@@ -35,7 +39,7 @@ contract VaultTest is Test, VyperDeployer {
             FeeOracle(factory.feeOracleAddress()),
             address(router)
         );
-        Vault(payable(factory.vaultAddress())).init{value: 1e18}(
+        Vault(payable(factory.vaultAddress())).init829{value: 1e18}(
             AddressRegistry(factory.addressRegistryAddress())
         );
         FeeOracle(factory.feeOracleAddress()).init(
