@@ -1,4 +1,4 @@
-# @version 0.3.7
+# @version 0.3.8
 
 struct CoinPriceUSD:
     coin: address
@@ -91,7 +91,7 @@ def processMintRequest(dwp: OracleParams):
         send(self.vault, mr.inputTokenAmount)
     else:
         assert mr.coin.transfer(self.vault, mr.inputTokenAmount)
-    assert IERC20(self.vault).transfer(mr.requester, mr.minAlpAmount)
+    assert IERC20(self.vault).transfer(mr.requester, delta)
 
 @external
 @nonreentrant("router")
@@ -132,7 +132,8 @@ def processBurnRequest(dwp: OracleParams):
     if br.coin.address == convert(0, address):
         send(br.requester, br.outputTokenAmount)
     else:
-        br.coin.transfer(br.requester, br.outputTokenAmount)
+        assert br.coin.transfer(br.requester, br.outputTokenAmount)
+    assert IERC20(self.vault).transfer(br.requester, br.maxAlpAmount - delta)
 
 @external
 @nonreentrant("router")

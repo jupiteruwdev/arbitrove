@@ -86,7 +86,7 @@ contract FeeOracle is OwnableUpgradeable {
         for (uint256 i; i < targetsLength;) {
             require(params.cpu[i].coin == targets[i].coin, "Oracle order error 2");
             uint256 __decimals = targets[i].coin == address(0) ? 18 : ERC20(targets[i].coin).decimals();
-            tvlUSD10000X += weights[i].weight * params.cpu[i].price / __decimals;
+            tvlUSD10000X += weights[i].weight * params.cpu[i].price / 10 ** __decimals;
             unchecked {
                 i++;
             }
@@ -95,7 +95,7 @@ contract FeeOracle is OwnableUpgradeable {
         for (uint256 i; i < targetsLength;) {
             require(params.cpu[i].coin == weights[i].coin, "Oracle order error 3");
             uint256 __decimals = targets[i].coin == address(0) ? 18 : ERC20(targets[i].coin).decimals();
-            weights[i].weight = weights[i].weight * params.cpu[i].price * 100 / tvlUSD10000X / __decimals;
+            weights[i].weight = weights[i].weight * params.cpu[i].price * 100 / tvlUSD10000X / 10 ** __decimals;
             unchecked {
                 i++;
             }
@@ -114,7 +114,7 @@ contract FeeOracle is OwnableUpgradeable {
         CoinWeight memory currentCoinWeight = weights[params.position];
         require(target.coin == currentCoinWeight.coin, "Oracle order error 4");
         uint256 __decimals = target.coin == address(0) ? 18 : ERC20(target.coin).decimals();
-        uint256 depositValueUSD10000X = params.amount * params.cpu[params.position].price / __decimals;
+        uint256 depositValueUSD10000X = params.amount * params.cpu[params.position].price / 10 ** __decimals;
         uint256 newWeight = (currentCoinWeight.weight * tvlUSD10000X / 100 + depositValueUSD10000X) * 100 / (tvlUSD10000X + depositValueUSD10000X);
         // calculate distance
         uint256 originalDistance = target.weight >= currentCoinWeight.weight ? (target.weight - currentCoinWeight.weight) * 100 / target.weight : (currentCoinWeight.weight - target.weight) * 100 / target.weight;
@@ -126,7 +126,7 @@ contract FeeOracle is OwnableUpgradeable {
             fee = int256(improvement * maxBonus) * -1 / 100;
         } else {
             // penalty
-            uint256 deterioration = originalDistance - newDistance;
+            uint256 deterioration = newDistance - originalDistance;
             fee = int256(deterioration * maxFee) / 100;
         }
     }
@@ -142,7 +142,7 @@ contract FeeOracle is OwnableUpgradeable {
         CoinWeight memory currentCoinWeight = weights[params.position];
         require(target.coin == currentCoinWeight.coin, "Oracle order error 5");
         uint256 __decimals = target.coin == address(0) ? 18 : ERC20(target.coin).decimals();
-        uint256 withdrawalValueUSD10000X = params.amount * params.cpu[params.position].price / __decimals;
+        uint256 withdrawalValueUSD10000X = params.amount * params.cpu[params.position].price / 10 ** __decimals;
         uint256 newWeight = (currentCoinWeight.weight * tvlUSD10000X / 100 - withdrawalValueUSD10000X) * 100 / (tvlUSD10000X + withdrawalValueUSD10000X);
         // calculate distance
         uint256 originalDistance = target.weight >= currentCoinWeight.weight ? (target.weight - currentCoinWeight.weight) * 100 / target.weight : (currentCoinWeight.weight - target.weight) * 100 / target.weight;
@@ -154,7 +154,7 @@ contract FeeOracle is OwnableUpgradeable {
             fee = int256(improvement * maxBonus) / 100;
         } else {
             // penalty
-            uint256 deterioration = originalDistance - newDistance;
+            uint256 deterioration = newDistance - originalDistance;
             fee = int256(deterioration * maxFee) * -1 / 100;
         }
     }
