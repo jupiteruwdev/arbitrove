@@ -110,8 +110,8 @@ contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
     blockCapCounter[block.number] += lessTvlUSD10000X;
     require(getAmountAcrossStrategies(coin) + amount < coinCap[coin], "Coin cap reached");
     (int256 fee, , uint256 tvlUSD10000X) = addressRegistry.feeOracle().getWithdrawalFee(withdrawalFeeParams);
-    // uint256 poolRatio = lessTvlUSD10000X * 10000 / (tvlUSD10000X);
-    // _burn(msg.sender, poolRatio * totalSupply() / 10000 * uint256(100 + fee) / 100);
+    uint256 poolRatio = lessTvlUSD10000X * 10000 / (tvlUSD10000X);
+    _burn(msg.sender, poolRatio * totalSupply() / 10000 * uint256(100 + fee) / 100);
     debt[coin] += amount;
   }
 
