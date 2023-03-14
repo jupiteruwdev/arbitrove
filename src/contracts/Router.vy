@@ -46,16 +46,26 @@ struct BurnRequest:
 mintQueue: DynArray[MintRequest, 200]
 burnQueue: DynArray[BurnRequest, 200]
 owner: public(address)
+darkOracle: public(address)
 lock: bool
 vault: address
 addressRegistry: AddressRegistry
 
 @external
-def initialize(_vault: address, _addressRegistry: AddressRegistry):
+def initialize(_vault: address, _addressRegistry: AddressRegistry, _darkOracle: address):
     assert self.owner == empty(address)
     self.owner = msg.sender
     self.vault = _vault
     self.addressRegistry = _addressRegistry
+    self.darkOracle = _darkOracle
+
+@external
+def reinitialize(_vault: address, _addressRegistry: AddressRegistry, _darkOracle: address):
+    assert msg.sender == self.owner
+    self.owner = msg.sender
+    self.vault = _vault
+    self.addressRegistry = _addressRegistry
+    self.darkOracle = _darkOracle
 
 @internal
 def getCoinPositionInCPU(cpu: DynArray[CoinPriceUSD, 50], coin: address) -> uint256:
@@ -68,7 +78,7 @@ def getCoinPositionInCPU(cpu: DynArray[CoinPriceUSD, 50], coin: address) -> uint
 @external 
 @nonreentrant("router")
 def processMintRequest(dwp: OracleParams):
-    assert msg.sender == self.owner
+    assert msg.sender == self.darkOracle
     if not self.lock:
         raise "Not locked"
     if not len(self.mintQueue) > 0:
@@ -98,7 +108,7 @@ def processMintRequest(dwp: OracleParams):
 def cancelMintRequest(refund: bool):
     assert self.lock
     mr: MintRequest = self.mintQueue.pop()
-    assert msg.sender == self.owner or mr.expire < block.timestamp
+    assert msg.sender == self.darkOracle or mr.expire < block.timestamp
     if refund:
         if mr.coin.address == convert(0, address):
             send(mr.requester, mr.inputTokenAmount)
@@ -109,6 +119,7 @@ def cancelMintRequest(refund: bool):
 @external 
 @nonreentrant("router")
 def processBurnRequest(dwp: OracleParams):
+    assert msg.sender == self.darkOracle
     if not self.lock:
         raise "Not locked"
     if not len(self.burnQueue) > 0:
@@ -140,18 +151,18 @@ def processBurnRequest(dwp: OracleParams):
 def refundBurnRequest():
     assert self.lock
     br: BurnRequest = self.burnQueue.pop()
-    assert msg.sender == self.owner or br.expire < block.timestamp
+    assert msg.sender == self.darkOracle or br.expire < block.timestamp
     assert IERC20(self.vault).transfer(msg.sender, br.maxAlpAmount)
 
 # lock submitting new requests before crunching queue
 @external 
 def acquireLock():
-    assert msg.sender == self.owner
+    assert msg.sender == self.darkOracle
     self.lock = True
 
 @external 
 def releaseLock():
-    assert msg.sender == self.owner
+    assert msg.sender == self.darkOracle
     self.lock = False
 
 @external

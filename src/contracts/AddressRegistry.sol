@@ -32,6 +32,12 @@ contract AddressRegistry is OwnableUpgradeable {
     router = _router;
   }
 
+  function reinit(IVault _vault, FeeOracle _feeOracle, address _router) onlyOwner external {
+    vault = _vault;
+    feeOracle = _feeOracle;
+    router = _router;
+  }
+
   function addStrategy(IStrategy strategy, address[] calldata components) onlyOwner external {
     require(!strategyWhitelist[strategy], "Strategy already whitelisted");
     for (uint i; i < components.length;) {
