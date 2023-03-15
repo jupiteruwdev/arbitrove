@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
+/// Vault Interface
 interface IVault {
     function getAmountAcrossStrategies(
         address coin

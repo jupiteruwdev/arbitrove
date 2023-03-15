@@ -10,18 +10,27 @@ import "@strategy/IStrategy.sol";
 import "@/AddressRegistry.sol";
 import "@structs/structs.sol";
 
+/// The Vault contract provides a secure and flexible platform for depositing and withdrawing coins, as well as approving and depositing ETH to strategies.
 contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
     struct DepositParams {
+        /// Deposit coin position in cpu array
         uint256 coinPositionInCPU;
+        /// Deposit amount
         uint256 _amount;
+        /// Vault's Coin price usd array
         CoinPriceUSD[] cpu;
+        /// Expire time stamp
         uint256 expireTimestamp;
     }
 
     struct WithdrawalParams {
+        /// Withdraw coin position in cpu array
         uint256 coinPositionInCPU;
+        /// Withdrawal amount
         uint256 _amount;
+        /// Vault's Coin price usd array
         CoinPriceUSD[] cpu;
+        /// Expire time stamp
         uint256 expireTimestamp;
     }
 
@@ -98,6 +107,8 @@ contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
         blockCapUSD = cap;
     }
 
+    /// @notice Deposit
+    /// @param params Deposit params
     function deposit(DepositParams memory params) external payable onlyRouter {
         DepositFeeParams memory depositFeeParams = DepositFeeParams({
             cpu: params.cpu,
@@ -116,17 +127,23 @@ contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
             "Coin cap reached"
         );
 
-        uint256 newTvlUSD10000X = (params.cpu[params.coinPositionInCPU].price *
+        /// calculate deposit value
+        /// formula: depositValue = coinPriceUSD * coinDepositAmount / 10**coinDecimal
+        uint256 depositValue = (params.cpu[params.coinPositionInCPU].price *
             params._amount) / 10 ** __decimals;
         require(
-            newTvlUSD10000X + blockCapCounter[block.number] < blockCapUSD,
+            depositValue + blockCapCounter[block.number] < blockCapUSD,
             "Block cap reached"
         );
-        blockCapCounter[block.number] += newTvlUSD10000X;
+
+        /// update blockCapCounter with depositValue
+        blockCapCounter[block.number] += depositValue;
+
+        /// Get deposit fee and tvl before deposit
         (int256 fee, , uint256 tvlUSD10000X) = addressRegistry
             .feeOracle()
             .getDepositFee(depositFeeParams);
-        uint256 poolRatio = (newTvlUSD10000X * poolRatioDenominator) /
+        uint256 poolRatio = (depositValue * poolRatioDenominator) /
             tvlUSD10000X;
 
         /// vault token mint
@@ -138,6 +155,8 @@ contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
         );
     }
 
+    /// @notice Withdraw
+    /// @param params Withdraw params
     function withdraw(
         WithdrawalParams memory params
     ) external payable onlyRouter {
@@ -153,32 +172,37 @@ contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
         uint256 __decimals = coin == address(0)
             ? 18
             : IERC20Metadata(coin).decimals();
-        uint256 lessTvlUSD10000X = (params.cpu[params.coinPositionInCPU].price *
+
+        /// calculate withdrawal value
+        /// formula: withdrawalValue = coinPriceUSD * withdrawalCoinAmount / 10**coinDecimal
+        uint256 withdrawalValue = (params.cpu[params.coinPositionInCPU].price *
             params._amount) / 10 ** __decimals;
         require(
-            lessTvlUSD10000X + blockCapCounter[block.number] < blockCapUSD,
+            withdrawalValue + blockCapCounter[block.number] < blockCapUSD,
             "Block cap reached"
         );
-        blockCapCounter[block.number] += lessTvlUSD10000X;
+        blockCapCounter[block.number] += withdrawalValue;
         require(
             getAmountAcrossStrategies(coin) + amount < coinCap[coin],
             "Coin cap reached"
         );
+
+        /// Get withdrawal fee and tvl before withdraw
         (int256 fee, , uint256 tvlUSD10000X) = addressRegistry
             .feeOracle()
             .getWithdrawalFee(withdrawalFeeParams);
-        uint256 poolRatio = (lessTvlUSD10000X * poolRatioDenominator) /
+        uint256 poolRatio = (withdrawalValue * poolRatioDenominator) /
             tvlUSD10000X;
 
         /// burn vault token
-        /// formula: poolRatio * totalSupply * (100 + fee) / 100 (fee decominator) / 10000 (poolRatio denomiator)
+        /// formula: poolRatio * totalSupply * (100 - fee) / 100 (fee decominator) / 10000 (poolRatio denomiator)
         _burn(
             msg.sender,
             (((poolRatio * totalSupply()) / poolRatioDenominator) *
-                uint256(100 + fee)) / 100
+                uint256(100 - fee)) / 100
         );
 
-        /// increase claimable debt amount for withdrawing amount of coin
+        /// increase claimable debt amount for withdrawing amount of coin later
         debt[coin] += amount;
     }
 
