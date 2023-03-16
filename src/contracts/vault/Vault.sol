@@ -212,7 +212,8 @@ contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
     function claimDebt(address coin, uint256 amount) external onlyRouter {
         require(debt[coin] >= amount, "insufficient debt amount for coin");
         debt[coin] -= amount;
-        require(IERC20(coin).transfer(msg.sender, amount));
+        if(coin == address(0)) address(msg.sender).transfer(amount);
+        else require(IERC20(coin).transfer(msg.sender, amount));
     }
 
     /// @notice Approve `amount` of coin for strategy to use
