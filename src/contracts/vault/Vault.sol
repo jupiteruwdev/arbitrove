@@ -182,10 +182,7 @@ contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
             "Block cap reached"
         );
         blockCapCounter[block.number] += withdrawalValue;
-        require(
-            getAmountAcrossStrategies(coin) + amount < coinCap[coin],
-            "Coin cap reached"
-        );
+        // no coin cap check for withdrawal
 
         /// Get withdrawal fee and tvl before withdraw
         (int256 fee, , uint256 tvlUSD10000X) = addressRegistry
