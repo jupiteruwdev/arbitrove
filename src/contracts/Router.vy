@@ -54,6 +54,11 @@ lock: bool
 vault: address
 addressRegistry: AddressRegistry
 
+event MintRequestAdded(MintRequest)
+event BurnRequestAdded(BurnRequest)
+event MintRequestProcessed(OracleParams)
+event BurnRequestProcessed(OracleParams)
+
 @external
 def initialize(_vault: address, _addressRegistry: AddressRegistry):
     assert self.owner == empty(address)
@@ -97,6 +102,7 @@ def processMintRequest(dwp: OracleParams):
     else:
         assert mr.coin.transfer(self.vault, mr.inputTokenAmount)
     assert IERC20(self.vault).transfer(mr.requester, delta)
+    MintRequestProcessed(dwp)
 
 @external
 @nonreentrant("router")
@@ -140,6 +146,7 @@ def processBurnRequest(dwp: OracleParams):
     else:
         assert br.coin.transfer(br.requester, br.outputTokenAmount)
     assert IERC20(self.vault).transfer(br.requester, br.maxAlpAmount - delta)
+    BurnRequestProcessed(dwp)
 
 @external
 @nonreentrant("router")
@@ -173,6 +180,7 @@ def submitMintRequest(mr: MintRequest):
         assert mr.coin.transferFrom(msg.sender, self, mr.inputTokenAmount)
     else:
         assert msg.value == mr.inputTokenAmount
+    MintRequestAdded(mr)
 
 @external
 @nonreentrant("router")
@@ -182,6 +190,7 @@ def submitBurnRequest(br: BurnRequest):
     assert br.requester == msg.sender
     self.burnQueue.append(br)
     assert IERC20(self.vault).transferFrom(msg.sender, self, br.maxAlpAmount)
+    BurnRequestAdded(br)
 
 @external
 @nonreentrant("router")
