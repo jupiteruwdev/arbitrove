@@ -3,7 +3,6 @@ pragma solidity 0.8.17;
 
 import "@vault/IVault.sol";
 
-
 enum PairType {
     USDC,
     WETH
@@ -37,7 +36,6 @@ struct DepositFeeParams {
     uint256 position;
     uint256 amount;
 }
-
 
 struct WithdrawalFeeParams {
     CoinPriceUSD[] cpu;

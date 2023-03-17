@@ -11,15 +11,29 @@ contract DeployFactory is Script {
         vm.startBroadcast(deployerPrivateKey);
 
         FactoryTokens factory = new FactoryTokens();
-        esTROVE(factory.esTroveAddress()).init(troveAddress, 360, factory.farmAddress());
-        Farm(factory.farmAddress()).init(IERC20(factory.esTroveAddress()), 30e18, 3575, 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff);
+        esTROVE(factory.esTroveAddress()).init(
+            troveAddress,
+            360,
+            factory.farmAddress()
+        );
+        Farm(factory.farmAddress()).init(
+            IERC20(factory.esTroveAddress()),
+            30e18,
+            3575,
+            0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+        );
 
         console.log("esTROVE contract: ");
         console.log(factory.esTroveAddress());
         console.log("Farm contract: ");
         console.log(factory.farmAddress());
 
-        Farm(factory.farmAddress()).add(1, IERC20(troveAddress), false, factory.esTroveAddress());
+        Farm(factory.farmAddress()).add(
+            1,
+            IERC20(troveAddress),
+            false,
+            factory.esTroveAddress()
+        );
         Farm(factory.farmAddress()).pause();
         esTROVE(factory.esTroveAddress()).pause();
         vm.stopBroadcast();

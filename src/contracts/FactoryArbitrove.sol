@@ -24,10 +24,10 @@ contract FactoryArbitrove is Ownable {
         feeOracleAddress = address(fOProxy);
     }
 
-    function upgradeImplementation(TProxy proxy, address newImplementation)
-        external
-        onlyOwner
-    {
+    function upgradeImplementation(
+        TProxy proxy,
+        address newImplementation
+    ) external onlyOwner {
         proxy.upgradeTo(newImplementation);
     }
 }

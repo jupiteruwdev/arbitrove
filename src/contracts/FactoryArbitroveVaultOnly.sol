@@ -15,10 +15,10 @@ contract FactoryArbitroveVaultOnly is Ownable {
         vaultAddress = address(vProxy);
     }
 
-    function upgradeImplementation(TProxy proxy, address newImplementation)
-        external
-        onlyOwner
-    {
+    function upgradeImplementation(
+        TProxy proxy,
+        address newImplementation
+    ) external onlyOwner {
         proxy.upgradeTo(newImplementation);
     }
 }

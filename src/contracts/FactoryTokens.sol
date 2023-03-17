@@ -6,7 +6,6 @@ import "@farm/Farm.sol";
 import "@/TProxy.sol";
 
 contract FactoryTokens is Ownable {
-
     address public farmAddress;
     address public esTroveAddress;
 
@@ -19,7 +18,10 @@ contract FactoryTokens is Ownable {
         esTroveAddress = address(estroveProxy);
     }
 
-    function upgradeImplementation(TProxy proxy, address newImplementation) external onlyOwner {
+    function upgradeImplementation(
+        TProxy proxy,
+        address newImplementation
+    ) external onlyOwner {
         proxy.upgradeTo(newImplementation);
     }
 }
