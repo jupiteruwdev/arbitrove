@@ -433,14 +433,14 @@ contract VaultTest is Test, VyperDeployer {
         uint256 __decimals = coin == address(0)
             ? 18
             : IERC20Metadata(coin).decimals();
-        (int256 fee, , uint256 tvlUSD10000X) = ar.feeOracle().getDepositFee(
+        (int256 fee, , uint256 tvlUSD1e18X) = ar.feeOracle().getDepositFee(
             depositFeeParams
         );
         uint256 expectedDepositValue = (depositFeeParams.amount *
             depositFeeParams.cpu[depositFeeParams.position].price) /
             10 ** __decimals;
         uint256 expectedPoolRatio = (expectedDepositValue * 1e18) /
-            tvlUSD10000X;
+            tvlUSD1e18X;
 
         uint256 expectedVaultBalance = (((expectedPoolRatio *
             vault.totalSupply()) / 1e18) * uint256(100 - fee)) / 100;
@@ -456,14 +456,14 @@ contract VaultTest is Test, VyperDeployer {
         uint256 __decimals = coin == address(0)
             ? 18
             : IERC20Metadata(coin).decimals();
-        (int256 fee, , uint256 tvlUSD10000X) = ar.feeOracle().getWithdrawalFee(
+        (int256 fee, , uint256 tvlUSD1e18X) = ar.feeOracle().getWithdrawalFee(
             withdrawalFeeParams
         );
         uint256 expectedWithdrawalValue = (withdrawalFeeParams.amount *
             withdrawalFeeParams.cpu[withdrawalFeeParams.position].price) /
             10 ** __decimals;
         uint256 expectedPoolRatio = (expectedWithdrawalValue * 1e18) /
-            tvlUSD10000X;
+            tvlUSD1e18X;
 
         uint256 expectedVaultBalance = (((expectedPoolRatio *
             vault.totalSupply()) / 1e18) * uint256(100 - fee)) / 100;
