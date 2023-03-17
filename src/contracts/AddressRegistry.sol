@@ -8,11 +8,15 @@ contract AddressRegistry is OwnableUpgradeable {
     FeeOracle public feeOracle;
     address public router;
     mapping(address => IStrategy[]) public coinToStrategy;
-    mapping(IStrategy => bool) public strategyWhitelist;
+    mapping(IStrategy => uint256) public strategyWhitelist;
+    mapping(address => uint256) public rebalancerWhitelist;
     address[] public supportedCoinAddresses;
 
     event SET_ROUTER(address);
     event ADD_STRATEGY(IStrategy, address[]);
+    event ADD_REBALANCER(address);
+    event REMOVE_STRATEGY(IStrategy);
+    event REMOVE_REBALANCER(address);
 
     constructor() {
         _disableInitializers();
@@ -35,13 +39,13 @@ contract AddressRegistry is OwnableUpgradeable {
         router = _router;
 
         emit SET_ROUTER(_router);
-    }
+    } 
 
     function addStrategy(
         IStrategy strategy,
         address[] calldata coins
     ) external onlyOwner {
-        require(!strategyWhitelist[strategy], "Strategy already whitelisted");
+        require(strategyWhitelist[strategy] == 0, "Strategy already whitelisted");
         for (uint256 i; i < coins.length; ) {
             IStrategy[] memory strategiesForCoin = coinToStrategy[coins[i]];
             uint256 j;
@@ -57,20 +61,68 @@ contract AddressRegistry is OwnableUpgradeable {
                 i++;
             }
         }
-        strategyWhitelist[strategy] = true;
+        strategyWhitelist[strategy] = block.timestamp + 1 days;
 
         emit ADD_STRATEGY(strategy, coins);
     }
 
+    function addRebalancer(address rebalancer) external onlyOwner {
+        require(
+            rebalancerWhitelist[rebalancer] == 0,
+            "Rebalancer already whitelisted"
+        );
+        rebalancerWhitelist[rebalancer] = block.timestamp + 1 days;
+
+        emit ADD_REBALANCER(rebalancer);
+    }
+
+    function removeStrategy(IStrategy strategy) external onlyOwner {
+        require(strategyWhitelist[strategy] != 0, "Strategy not whitelisted");
+        strategyWhitelist[strategy] = 0;
+
+        emit REMOVE_STRATEGY(strategy);
+    }
+
+    function removeRebalancer(address rebalancer) external onlyOwner {
+        require(
+            rebalancerWhitelist[rebalancer] != 0,
+            "Rebalancer not whitelisted"
+        );
+        rebalancerWhitelist[rebalancer] = 0;
+
+        emit REMOVE_REBALANCER(rebalancer);
+    }
+
     function getCoinToStrategy(
         address coin
-    ) external view returns (IStrategy[] memory) {
-        return coinToStrategy[coin];
+    ) external view returns (IStrategy[] memory strategies) {
+      uint256 activeStrategies = 0;
+      // count active strategies
+      for(uint256 i; i < coinToStrategy[coin].length; i++) {
+        if(strategyWhitelist[coinToStrategy[coin][i]] < block.timestamp && strategyWhitelist[coinToStrategy[coin][i]] != 0) {
+          activeStrategies++;
+        }
+      }
+      // create array of active strategies
+      uint j = 0;
+      strategies = new IStrategy[](activeStrategies);
+      for(uint256 i; i < coinToStrategy[coin].length; i++) {
+        if(strategyWhitelist[coinToStrategy[coin][i]] < block.timestamp && strategyWhitelist[coinToStrategy[coin][i]] != 0) {
+          strategies[j] = coinToStrategy[coin][i];
+          j++;
+        }
+      }
     }
 
     function getWhitelistedStrategies(
         IStrategy strategy
     ) external view returns (bool) {
-        return strategyWhitelist[strategy];
+        return block.timestamp >= strategyWhitelist[strategy] && strategyWhitelist[strategy] != 0;
+    }
+
+    function getWhitelistedRebalancer(
+        address rebalancer
+    ) external view returns (bool) {
+        return block.timestamp >= rebalancerWhitelist[rebalancer] && rebalancerWhitelist[rebalancer] != 0;
     }
 }

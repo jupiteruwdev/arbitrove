@@ -212,7 +212,7 @@ contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
     function claimDebt(address coin, uint256 amount) external onlyRouter {
         require(debt[coin] >= amount, "insufficient debt amount for coin");
         debt[coin] -= amount;
-        if(coin == address(0)) address(msg.sender).transfer(amount);
+        if(coin == address(0)) payable(msg.sender).transfer(amount);
         else require(IERC20(coin).transfer(msg.sender, amount));
     }
 
@@ -248,6 +248,9 @@ contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
         );
     }
 
+    /// @notice Deposit `amount` of ETH to strategy because ETH can't be approved. Note that this feature will not likely to be used. Trove mostly will be WETH based.
+    /// @param strategy Address of Strategy
+    /// @param amount Amount of ETH to deposit
     function depositETHToStrategy(
         IStrategy strategy,
         uint256 amount
@@ -260,8 +263,10 @@ contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
     /// @notice Withdraw `amount` of coin from vault
     /// @param coin Address of coin
     /// @param amount Amount of coin to withdraw
-    function rebalance(address coin, uint256 amount) external onlyOwner {
-        require(IERC20(coin).transfer(msg.sender, amount));
+    function rebalance(address destination, address coin, uint256 amount) external onlyOwner {
+        require(addressRegistry.getWhitelistedRebalancer(destination));
+        if(coin == address(0)) payable(destination).transfer(amount);
+        else require(IERC20(coin).transfer(destination, amount));
     }
 
     /// @notice Get aggregated amount of coin for vault and strategies

@@ -14,8 +14,12 @@ struct OracleParams:
     cpu: DynArray[CoinPriceUSD, 50]
     expireTimestamp: uint256
 
+interface FeeOracle:
+    def isInTarget(coin: address) -> bool: view
+
 interface AddressRegistry:
     def getCoinToStrategy(a: address) -> DynArray[address,100]: view
+    def feeOracle() -> FeeOracle: view
 
 interface IERC20:
     def transferFrom(a: address, b: address, c: uint256) -> bool: nonpayable
@@ -68,6 +72,7 @@ def getCoinPositionInCPU(cpu: DynArray[CoinPriceUSD, 50], coin: address) -> uint
 @external 
 @nonreentrant("router")
 def processMintRequest(dwp: OracleParams):
+    assert addressRegistry.feeOracle().isInTarget(dwp.cpu[0].coin)
     assert msg.sender == self.owner
     if not self.lock:
         raise "Not locked"
@@ -109,6 +114,7 @@ def cancelMintRequest(refund: bool):
 @external 
 @nonreentrant("router")
 def processBurnRequest(dwp: OracleParams):
+    assert addressRegistry.feeOracle().isInTarget(dwp.cpu[0].coin)
     if not self.lock:
         raise "Not locked"
     if not len(self.burnQueue) > 0:
@@ -158,7 +164,8 @@ def releaseLock():
 @nonreentrant("router")
 @payable
 def submitMintRequest(mr: MintRequest):
-    assert len(self.addressRegistry.getCoinToStrategy(mr.coin.address)) > 0
+    
+    assert addressRegistry.feeOracle().isInTarget(dwp.cpu[0].coin)
     assert self.lock == False
     assert mr.requester == msg.sender
     self.mintQueue.append(mr)
@@ -170,7 +177,7 @@ def submitMintRequest(mr: MintRequest):
 @external
 @nonreentrant("router")
 def submitBurnRequest(br: BurnRequest):
-    assert len(self.addressRegistry.getCoinToStrategy(br.coin.address)) > 0
+    assert addressRegistry.feeOracle().isInTarget(dwp.cpu[0].coin)
     assert self.lock == False
     assert br.requester == msg.sender
     self.burnQueue.append(br)

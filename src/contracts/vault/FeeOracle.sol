@@ -50,6 +50,16 @@ contract FeeOracle is OwnableUpgradeable {
         emit SET_TARGETS(weights);
     }
 
+    function isInTarget(address coin) public view returns (bool) {
+        for (uint8 i; i < targetsLength; ) {
+            if (targets[i].coin == coin) return true;
+            unchecked {
+                ++i;
+            }
+        }
+        return false;
+    }
+
     /// @notice Get deposit fee
     /// @param params Deposit fee params
     /// @return fee Deposit fee
