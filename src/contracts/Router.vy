@@ -118,7 +118,7 @@ def cancelMintRequest(refund: bool):
         if mr.coin.address == convert(0, address):
             send(mr.requester, mr.inputTokenAmount)
         else:
-            assert mr.coin.transfer(msg.sender, mr.inputTokenAmount)
+            assert mr.coin.transfer(mr.requester, mr.inputTokenAmount)
 
 # request vault to burn ALP tokens and mint debt tokens to requester afterwards.
 @external 
@@ -158,7 +158,7 @@ def refundBurnRequest():
     assert self.lock
     br: BurnRequest = self.burnQueue.pop()
     assert msg.sender == self.darkOracle or br.expire < block.timestamp
-    assert IERC20(self.vault).transfer(msg.sender, br.maxAlpAmount)
+    assert IERC20(self.vault).transfer(br.requester, br.maxAlpAmount)
 
 # lock submitting new requests before crunching queue
 @external 
