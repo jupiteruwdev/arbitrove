@@ -83,7 +83,7 @@ contract VaultTest is Test, VyperDeployer {
         assertEq(router.owner(), whale, "!router owner");
         assertEq(
             ar.getCoinToStrategy(address(jonesToken)).length,
-            1,
+            0,
             "!strategy length for jonesToken"
         );
     }

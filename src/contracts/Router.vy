@@ -54,6 +54,14 @@ darkOracle: public(address)
 lock: bool
 vault: address
 addressRegistry: AddressRegistry
+event MintRequestAdded:
+    mr: MintRequest
+event BurnRequestAdded:
+    br: BurnRequest
+event MintRequestProcessed:
+    op: OracleParams
+event BurnRequestProcessed:
+    op: OracleParams
 
 @external
 def initialize(_vault: address, _addressRegistry: AddressRegistry, _darkOracle: address):
@@ -82,7 +90,7 @@ def getCoinPositionInCPU(cpu: DynArray[CoinPriceUSD, 50], coin: address) -> uint
 @external 
 @nonreentrant("router")
 def processMintRequest(dwp: OracleParams):
-    assert addressRegistry.feeOracle().isInTarget(dwp.cpu[0].coin)
+    assert self.addressRegistry.feeOracle().isInTarget(dwp.cpu[0].coin)
     assert msg.sender == self.darkOracle
     if not self.lock:
         raise "Not locked"
@@ -107,6 +115,7 @@ def processMintRequest(dwp: OracleParams):
     else:
         assert mr.coin.transfer(self.vault, mr.inputTokenAmount)
     assert IERC20(self.vault).transfer(mr.requester, delta)
+    log MintRequestProcessed(dwp)
 
 @external
 @nonreentrant("router")
@@ -124,7 +133,7 @@ def cancelMintRequest(refund: bool):
 @external 
 @nonreentrant("router")
 def processBurnRequest(dwp: OracleParams):
-    assert addressRegistry.feeOracle().isInTarget(dwp.cpu[0].coin)
+    assert self.addressRegistry.feeOracle().isInTarget(dwp.cpu[0].coin)
     assert msg.sender == self.darkOracle
     if not self.lock:
         raise "Not locked"
@@ -151,6 +160,7 @@ def processBurnRequest(dwp: OracleParams):
     else:
         assert br.coin.transfer(br.requester, br.outputTokenAmount)
     assert IERC20(self.vault).transfer(br.requester, br.maxAlpAmount - delta)
+    log BurnRequestProcessed(dwp)
 
 @external
 @nonreentrant("router")
@@ -176,7 +186,7 @@ def releaseLock():
 @payable
 def submitMintRequest(mr: MintRequest):
     
-    assert addressRegistry.feeOracle().isInTarget(dwp.cpu[0].coin)
+    assert self.addressRegistry.feeOracle().isInTarget(mr.coin.address)
     assert self.lock == False
     assert mr.requester == msg.sender
     self.mintQueue.append(mr)
@@ -184,15 +194,18 @@ def submitMintRequest(mr: MintRequest):
         assert mr.coin.transferFrom(msg.sender, self, mr.inputTokenAmount)
     else:
         assert msg.value == mr.inputTokenAmount
+    log MintRequestAdded(mr)
+
 
 @external
 @nonreentrant("router")
 def submitBurnRequest(br: BurnRequest):
-    assert addressRegistry.feeOracle().isInTarget(dwp.cpu[0].coin)
+    assert self.addressRegistry.feeOracle().isInTarget(br.coin.address)
     assert self.lock == False
     assert br.requester == msg.sender
     self.burnQueue.append(br)
     assert IERC20(self.vault).transferFrom(msg.sender, self, br.maxAlpAmount)
+    log BurnRequestAdded(br)
 
 @external
 @nonreentrant("router")
