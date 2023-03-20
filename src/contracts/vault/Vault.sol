@@ -76,7 +76,10 @@ contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
         __ERC20_init("ALP", "ALP");
         addressRegistry = _addressRegistry;
         _mint(msg.sender, msg.value);
-        poolRatioDenominator = 1e18;
+    }
+
+    function setPoolRatioDenominator(uint256 _poolRatioDenominator) external onlyOwner {
+        poolRatioDenominator = _poolRatioDenominator;
     }
 
     /// @notice Set addressRegistry
@@ -107,9 +110,9 @@ contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
         blockCapUSD = cap;
     }
 
-    /// @notice Deposit
+    /// @notice Deposit. Note that the deposit amount is transferred to the vault from the router after checking the amount of ALP minted. If the amount of ALP minted is not correct, the call will revert and the router will refund.
     /// @param params Deposit params
-    function deposit(DepositParams memory params) external payable onlyRouter {
+    function deposit(DepositParams memory params) external onlyRouter {
         DepositFeeParams memory depositFeeParams = DepositFeeParams({
             cpu: params.cpu,
             vault: this,
@@ -118,12 +121,11 @@ contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
             amount: params._amount
         });
         address coin = params.cpu[params.coinPositionInCPU].coin;
-        uint256 amount = coin == address(0) ? msg.value : params._amount;
         uint256 __decimals = coin == address(0)
             ? 18
             : IERC20Metadata(coin).decimals();
         require(
-            getAmountAcrossStrategies(coin) + amount < coinCap[coin],
+            getAmountAcrossStrategies(coin) + params._amount < coinCap[coin],
             "Coin cap reached"
         );
 
@@ -140,11 +142,11 @@ contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
         blockCapCounter[block.number] += depositValue;
 
         /// Get deposit fee and tvl before deposit
-        (int256 fee, , uint256 tvlUSD10000X) = addressRegistry
+        (int256 fee, , uint256 tvlUSD1e18X) = addressRegistry
             .feeOracle()
             .getDepositFee(depositFeeParams);
         uint256 poolRatio = (depositValue * poolRatioDenominator) /
-            tvlUSD10000X;
+            tvlUSD1e18X;
 
         /// vault token mint
         /// fomula: poolRatio * totalSupply / (poolRatio denomiator) * (100 - fee) / (fee decominator)
@@ -155,11 +157,11 @@ contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
         );
     }
 
-    /// @notice Withdraw
+    /// @notice Withdraw. Note that the amount of ALP burned is checked before the router calls `claimDebt` subsequently to claim the token. If the amount of ALP burned is not correct, the call will revert and the router will refund.
     /// @param params Withdraw params
     function withdraw(
         WithdrawalParams memory params
-    ) external payable onlyRouter {
+    ) external onlyRouter {
         WithdrawalFeeParams memory withdrawalFeeParams = WithdrawalFeeParams({
             cpu: params.cpu,
             vault: this,
@@ -168,7 +170,6 @@ contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
             amount: params._amount
         });
         address coin = params.cpu[params.coinPositionInCPU].coin;
-        uint256 amount = coin == address(0) ? msg.value : params._amount;
         uint256 __decimals = coin == address(0)
             ? 18
             : IERC20Metadata(coin).decimals();
@@ -185,11 +186,11 @@ contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
         // no coin cap check for withdrawal
 
         /// Get withdrawal fee and tvl before withdraw
-        (int256 fee, , uint256 tvlUSD10000X) = addressRegistry
+        (int256 fee, , uint256 tvlUSD1e18X) = addressRegistry
             .feeOracle()
             .getWithdrawalFee(withdrawalFeeParams);
         uint256 poolRatio = (withdrawalValue * poolRatioDenominator) /
-            tvlUSD10000X;
+            tvlUSD1e18X;
 
         /// burn vault token
         /// formula: poolRatio * totalSupply * (100 - fee) / 100 (fee decominator) / 10000 (poolRatio denomiator)
@@ -200,7 +201,7 @@ contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
         );
 
         /// increase claimable debt amount for withdrawing amount of coin later
-        debt[coin] += amount;
+        debt[coin] += params._amount;
     }
 
     /// @notice Claim `amount` debt from vault

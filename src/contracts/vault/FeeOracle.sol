@@ -7,6 +7,7 @@ import "@vault/IVault.sol";
 import "@structs/structs.sol";
 
 /// Fee oracle contract that provides deposit and withdrawal fees to be used by vault contract
+/// Find the formulas here: https://docs.google.com/spreadsheets/d/1K-x2kDNVfSKCEjaOtOS_gbQu5PcrkRccioJP1UBuLhs/edit#gid=0
 /// The fees are based on the current weight of a coin in the vault compared to its target
 contract FeeOracle is OwnableUpgradeable {
     /// targets
@@ -64,19 +65,19 @@ contract FeeOracle is OwnableUpgradeable {
     /// @param params Deposit fee params
     /// @return fee Deposit fee
     /// @return weights Latest coin weights for vault before deposit
-    /// @return tvlUSD10000X Latest tvl for vault before deposit
+    /// @return tvlUSD1e18X Latest tvl for vault before deposit
     function getDepositFee(
         DepositFeeParams memory params
     )
         external
-        returns (int256 fee, CoinWeight[] memory weights, uint256 tvlUSD10000X)
+        returns (int256 fee, CoinWeight[] memory weights, uint256 tvlUSD1e18X)
     {
         CoinWeightsParams memory coinWeightParams = CoinWeightsParams({
             cpu: params.cpu,
             vault: params.vault,
             expireTimestamp: params.expireTimestamp
         });
-        (weights, tvlUSD10000X) = getCoinWeights(coinWeightParams);
+        (weights, tvlUSD1e18X) = getCoinWeights(coinWeightParams);
         CoinWeight memory target = targets[params.position];
         CoinWeight memory currentCoinWeight = weights[params.position];
         uint256 __decimals = target.coin == address(0)
@@ -85,16 +86,16 @@ contract FeeOracle is OwnableUpgradeable {
 
         /// new weight calc
         /// formula: depositValue = depositAmount * depositPrice / 10**decimals
-        uint256 depositValueUSD10000X = (params.amount *
+        uint256 depositValueUSD1e18X = (params.amount *
             params.cpu[params.position].price) / 10 ** __decimals;
 
         /// formula: currentCoinValue = currentCoinWeight * tvl / weightDenominator
-        uint256 currentCoinValue = (currentCoinWeight.weight * tvlUSD10000X) /
+        uint256 currentCoinValue = (currentCoinWeight.weight * tvlUSD1e18X) /
             weightDenominator;
 
         /// formula: newWeight = (currentCoinValue + depositValue) * weightDenominator / (tvl + depositValue)
-        uint256 newWeight = ((currentCoinValue + depositValueUSD10000X) *
-            weightDenominator) / (tvlUSD10000X + depositValueUSD10000X);
+        uint256 newWeight = ((currentCoinValue + depositValueUSD1e18X) *
+            weightDenominator) / (tvlUSD1e18X + depositValueUSD1e18X);
 
         /// calculate distance
         /// calculate original distance
@@ -124,19 +125,19 @@ contract FeeOracle is OwnableUpgradeable {
     /// @param params Withdrawal fee params
     /// @return fee Withdrawal fee
     /// @return weights Latest coin weight for vault before withdraw
-    /// @return tvlUSD10000X Latest tvl for vault before withdraw
+    /// @return tvlUSD1e18X Latest tvl for vault before withdraw
     function getWithdrawalFee(
         WithdrawalFeeParams memory params
     )
         external
-        returns (int256 fee, CoinWeight[] memory weights, uint256 tvlUSD10000X)
+        returns (int256 fee, CoinWeight[] memory weights, uint256 tvlUSD1e18X)
     {
         CoinWeightsParams memory coinWeightParams = CoinWeightsParams({
             cpu: params.cpu,
             vault: params.vault,
             expireTimestamp: params.expireTimestamp
         });
-        (weights, tvlUSD10000X) = getCoinWeights(coinWeightParams);
+        (weights, tvlUSD1e18X) = getCoinWeights(coinWeightParams);
         CoinWeight memory target = targets[params.position];
         CoinWeight memory currentCoinWeight = weights[params.position];
         uint256 __decimals = target.coin == address(0)
@@ -145,16 +146,16 @@ contract FeeOracle is OwnableUpgradeable {
 
         /// new weight calc
         /// formula: withdrawalValue = withdrawalAmount * withdrawalPrice / 10**decimals
-        uint256 withdrawalValueUSD10000X = (params.amount *
+        uint256 withdrawalValueUSD1e18X = (params.amount *
             params.cpu[params.position].price) / 10 ** __decimals;
 
         /// formula: currentCoinValue = currentCoinWeight * tvl / weightDenominator
-        uint256 currentCoinValue = (currentCoinWeight.weight * tvlUSD10000X) /
+        uint256 currentCoinValue = (currentCoinWeight.weight * tvlUSD1e18X) /
             weightDenominator;
 
         /// formula: newWeight = (currentCoinValue - withdrawalValue) * weightDenominator / (tvl - withdrawalValue)
-        uint256 newWeight = ((currentCoinValue - withdrawalValueUSD10000X) *
-            weightDenominator) / (tvlUSD10000X - withdrawalValueUSD10000X);
+        uint256 newWeight = ((currentCoinValue - withdrawalValueUSD1e18X) *
+            weightDenominator) / (tvlUSD1e18X - withdrawalValueUSD1e18X);
 
         // calculate distance
         /// calculate original distance
@@ -196,10 +197,10 @@ contract FeeOracle is OwnableUpgradeable {
     /// @notice Get current coin weights and tvl for given params
     /// @param params CoinWeightsPrams for get coin weights
     /// @return weights Current coin weights for given params
-    /// @return tvlUSD10000X TVL for given vault
+    /// @return tvlUSD1e18X TVL for given vault
     function getCoinWeights(
         CoinWeightsParams memory params
-    ) public returns (CoinWeight[] memory weights, uint256 tvlUSD10000X) {
+    ) public returns (CoinWeight[] memory weights, uint256 tvlUSD1e18X) {
         weights = new CoinWeight[](targetsLength);
         require(
             block.timestamp < params.expireTimestamp,
@@ -212,7 +213,7 @@ contract FeeOracle is OwnableUpgradeable {
         for (uint8 i; i < _targetsLength; ) {
             require(
                 params.cpu[i].coin == _targets[i].coin,
-                "Oracle order error 1"
+                "Oracle order error"
             );
             /// Get available amount of coin for the vault per every coin
             /// formula: coinVaultAmount + coinStrategiesAmount - coinDebtAmount
@@ -239,7 +240,7 @@ contract FeeOracle is OwnableUpgradeable {
                 (weights[i].weight * params.cpu[i].price) /
                 10 ** __decimals[i];
             /// formula: tvl += coinValue
-            tvlUSD10000X += weights[i].weight;
+            tvlUSD1e18X += weights[i].weight;
             unchecked {
                 i++;
             }
@@ -251,7 +252,7 @@ contract FeeOracle is OwnableUpgradeable {
             /// formula: weight = coinValue * weightDenominator / tvl
             weights[i].weight =
                 (weights[i].weight * weightDenominator) /
-                tvlUSD10000X;
+                tvlUSD1e18X;
             unchecked {
                 i++;
             }
@@ -280,7 +281,7 @@ contract FeeOracle is OwnableUpgradeable {
         require(totalWeight <= 100, "Weight error 2");
     }
 
-    /// @notice Get distance between two weights
+    /// @notice Get distance between two weights. The "distance" is calculated as a percentage change of the new weight compared to the target weight.
     /// @param targetWeight Standard weight that calculate distance
     /// @param comparedWeight Compared weight that calculate distance
     /// @return disatnce
