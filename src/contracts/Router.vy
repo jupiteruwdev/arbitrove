@@ -1,4 +1,4 @@
-# @version 0.3.7
+# @version 0.3.8
 
 struct CoinPriceUSD:
     coin: address
@@ -116,6 +116,16 @@ def processMintRequest(dwp: OracleParams):
         assert mr.coin.transfer(self.vault, mr.inputTokenAmount)
     assert IERC20(self.vault).transfer(mr.requester, delta)
     log MintRequestProcessed(dwp)
+
+@external
+@view
+def mintQueueLength() -> uint256:
+    return len(self.mintQueue)
+
+@external
+@view
+def burnQueueLength() -> uint256:
+    return len(self.burnQueue)
 
 @external
 @nonreentrant("router")

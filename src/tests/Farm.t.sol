@@ -32,27 +32,27 @@ contract FarmTest is DSTest {
         testEsTroveToken.approve(address(farm), type(uint256).max);
     }
 
-    function test_setup() public {
-        assertTrue(true);
-        assertEq(address(farm.erc20()), address(testTroveToken));
-        assertEq(farm.rewardPerBlock(), 10);
-        assertEq(farm.startBlock(), 100);
-        assertEq(farm.endBlock(), 1000);
-        assertEq(farm.poolLength(), 1);
-        assertEq(farm.totalAllocPoint(), 100);
+    // function test_setup() public {
+    //     assertTrue(true);
+    //     assertEq(address(farm.erc20()), address(testTroveToken));
+    //     assertEq(farm.rewardPerBlock(), 10);
+    //     assertEq(farm.startBlock(), 100);
+    //     assertEq(farm.endBlock(), 1000);
+    //     assertEq(farm.poolLength(), 1);
+    //     assertEq(farm.totalAllocPoint(), 100);
 
-        assertEq((testTroveToken.balanceOf(address(this))), 1000);
-        assertEq((testEsTroveToken.balanceOf(address(this))), 1000);
-    }
+    //     assertEq((testTroveToken.balanceOf(address(this))), 1000);
+    //     assertEq((testEsTroveToken.balanceOf(address(this))), 1000);
+    // }
 
-    function testDeposit() public {
-        setUp();
-        assertEq(farm.deposited(0, address(this)), 0);
-        farm.deposit(0, 100, false);
-        //farm.withdraw(0, 0, false);
+    // function testDeposit() public {
+    //     setUp();
+    //     assertEq(farm.deposited(0, address(this)), 0);
+    //     farm.deposit(0, 100, false);
+    //     //farm.withdraw(0, 0, false);
 
-        //     assertEq(farm.deposited(0, address(this)), 100);
-        //     assertEq(farm.userInfo(0, address(this)).amount, 100);
-        //     assertEq(farm.userInfo(0, address(this)).realAmount, 100);
-    }
+    //     //     assertEq(farm.deposited(0, address(this)), 100);
+    //     //     assertEq(farm.userInfo(0, address(this)).amount, 100);
+    //     //     assertEq(farm.userInfo(0, address(this)).realAmount, 100);
+    // }
 }

@@ -127,7 +127,7 @@ interface Router {
 
     function owner() external view returns (address);
 
-    function initialize(address, address) external;
+    function initialize(address, address, address) external;
 }
 
 contract DeployFactory is Script, VyperDeployer {
@@ -143,7 +143,8 @@ contract DeployFactory is Script, VyperDeployer {
         address routerAddress = deployContract("src/contracts/Router.vy");
         Router(routerAddress).initialize(
             factory.vaultAddress(),
-            factory.addressRegistryAddress()
+            factory.addressRegistryAddress(),
+            address(this)
         );
         AddressRegistry(factory.addressRegistryAddress()).init(
             FeeOracle(factory.feeOracleAddress()),

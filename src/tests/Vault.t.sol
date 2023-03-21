@@ -36,7 +36,8 @@ contract VaultTest is Test, VyperDeployer {
         router = Router(deployContract("src/contracts/Router.vy"));
         router.initialize(
             factory.vaultAddress(),
-            factory.addressRegistryAddress()
+            factory.addressRegistryAddress(),
+            address(this)
         );
 
         ar = AddressRegistry(factory.addressRegistryAddress());
