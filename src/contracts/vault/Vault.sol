@@ -78,7 +78,9 @@ contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
         _mint(msg.sender, msg.value);
     }
 
-    function setPoolRatioDenominator(uint256 _poolRatioDenominator) external onlyOwner {
+    function setPoolRatioDenominator(
+        uint256 _poolRatioDenominator
+    ) external onlyOwner {
         poolRatioDenominator = _poolRatioDenominator;
     }
 
@@ -145,8 +147,7 @@ contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
         (int256 fee, , uint256 tvlUSD1e18X) = addressRegistry
             .feeOracle()
             .getDepositFee(depositFeeParams);
-        uint256 poolRatio = (depositValue * poolRatioDenominator) /
-            tvlUSD1e18X;
+        uint256 poolRatio = (depositValue * poolRatioDenominator) / tvlUSD1e18X;
 
         /// vault token mint
         /// fomula: poolRatio * totalSupply / (poolRatio denomiator) * (100 - fee) / (fee decominator)
@@ -159,9 +160,7 @@ contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
 
     /// @notice Withdraw. Note that the amount of ALP burned is checked before the router calls `claimDebt` subsequently to claim the token. If the amount of ALP burned is not correct, the call will revert and the router will refund.
     /// @param params Withdraw params
-    function withdraw(
-        WithdrawalParams memory params
-    ) external onlyRouter {
+    function withdraw(WithdrawalParams memory params) external onlyRouter {
         WithdrawalFeeParams memory withdrawalFeeParams = WithdrawalFeeParams({
             cpu: params.cpu,
             vault: this,
@@ -210,7 +209,7 @@ contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
     function claimDebt(address coin, uint256 amount) external onlyRouter {
         require(debt[coin] >= amount, "insufficient debt amount for coin");
         debt[coin] -= amount;
-        if(coin == address(0)) payable(msg.sender).transfer(amount);
+        if (coin == address(0)) payable(msg.sender).transfer(amount);
         else require(IERC20(coin).transfer(msg.sender, amount));
     }
 
@@ -261,9 +260,13 @@ contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
     /// @notice Withdraw `amount` of coin from vault
     /// @param coin Address of coin
     /// @param amount Amount of coin to withdraw
-    function rebalance(address destination, address coin, uint256 amount) external onlyOwner {
+    function rebalance(
+        address destination,
+        address coin,
+        uint256 amount
+    ) external onlyOwner {
         require(addressRegistry.getWhitelistedRebalancer(destination));
-        if(coin == address(0)) payable(destination).transfer(amount);
+        if (coin == address(0)) payable(destination).transfer(amount);
         else require(IERC20(coin).transfer(destination, amount));
     }
 
