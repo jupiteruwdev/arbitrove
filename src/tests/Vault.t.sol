@@ -37,7 +37,7 @@ contract VaultTest is Test, VyperDeployer {
         router.initialize(
             factory.vaultAddress(),
             factory.addressRegistryAddress(),
-            address(this)
+            whale
         );
 
         ar = AddressRegistry(factory.addressRegistryAddress());
@@ -52,6 +52,8 @@ contract VaultTest is Test, VyperDeployer {
 
         feeOracle = FeeOracle(factory.feeOracleAddress());
         vault = Vault(payable(factory.vaultAddress()));
+        /// set vault pool ratio denominator
+        vault.setPoolRatioDenominator(1e18);
         jonesToken = new MockERC20("Jones Token", "JONES");
         jonesToken.mint(whale, mockCoin1Balance);
         jonesToken.mint(user1, mockUser1Balance);
@@ -440,8 +442,7 @@ contract VaultTest is Test, VyperDeployer {
         uint256 expectedDepositValue = (depositFeeParams.amount *
             depositFeeParams.cpu[depositFeeParams.position].price) /
             10 ** __decimals;
-        uint256 expectedPoolRatio = (expectedDepositValue * 1e18) /
-            tvlUSD1e18X;
+        uint256 expectedPoolRatio = (expectedDepositValue * 1e18) / tvlUSD1e18X;
 
         uint256 expectedVaultBalance = (((expectedPoolRatio *
             vault.totalSupply()) / 1e18) * uint256(100 - fee)) / 100;
