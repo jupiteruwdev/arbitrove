@@ -133,9 +133,9 @@ interface Router {
 contract DeployFactory is Script, VyperDeployer {
     function run() external {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
-        // address someRandomUser = vm.addr(1);
-        // vm.prank(someRandomUser);
-        // vm.deal(someRandomUser, 1 ether);
+        uint256 blockCap = vm.envUint("BLOCK_CAP");
+        uint256 poolRatioDenominator = vm.envUint("POOL_RATIO_DENOMINATOR");
+        address deployer = vm.addr(deployerPrivateKey);
 
         vm.startBroadcast(deployerPrivateKey);
 
@@ -144,7 +144,7 @@ contract DeployFactory is Script, VyperDeployer {
         Router(routerAddress).initialize(
             factory.vaultAddress(),
             factory.addressRegistryAddress(),
-            address(this)
+            deployer
         );
         AddressRegistry(factory.addressRegistryAddress()).init(
             FeeOracle(factory.feeOracleAddress()),
@@ -153,7 +153,20 @@ contract DeployFactory is Script, VyperDeployer {
         Vault(payable(factory.vaultAddress())).init829{value: 1e15}(
             AddressRegistry(factory.addressRegistryAddress())
         );
+        Vault(payable(factory.vaultAddress())).setBlockCap(blockCap);
+        Vault(payable(factory.vaultAddress())).setPoolRatioDenominator(
+            poolRatioDenominator
+        );
         FeeOracle(factory.feeOracleAddress()).init(20, 0);
+
+        console.log("router: ");
+        console.log(routerAddress);
+        console.log("addressRegistry: ");
+        console.log(factory.addressRegistryAddress());
+        console.log("feeOracle: ");
+        console.log(factory.feeOracleAddress());
+        console.log("vault: ");
+        console.log(factory.vaultAddress());
 
         vm.stopBroadcast();
     }
