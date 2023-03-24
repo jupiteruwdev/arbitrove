@@ -5,7 +5,7 @@ pragma solidity 0.8.17;
 interface IVault {
     function getAmountAcrossStrategies(
         address coin
-    ) external returns (uint256 value);
+    ) external view returns (uint256 value);
 
-    function debt(address coin) external returns (uint256 value);
+    function debt(address coin) external view returns (uint256 value);
 }

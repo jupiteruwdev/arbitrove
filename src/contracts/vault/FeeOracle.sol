@@ -200,7 +200,7 @@ contract FeeOracle is OwnableUpgradeable {
     /// @return tvlUSD1e18X TVL for given vault
     function getCoinWeights(
         CoinWeightsParams memory params
-    ) public returns (CoinWeight[] memory weights, uint256 tvlUSD1e18X) {
+    ) public view returns (CoinWeight[] memory weights, uint256 tvlUSD1e18X) {
         weights = new CoinWeight[](targetsLength);
         require(
             block.timestamp < params.expireTimestamp,
