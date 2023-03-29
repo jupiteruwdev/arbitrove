@@ -37,6 +37,14 @@ contract FeeOracle is OwnableUpgradeable {
         weightDenominator = 100;
     }
 
+    function setMaxFee(uint256 _maxFee) external onlyOwner {
+        maxFee = _maxFee;
+    }
+
+    function setMaxBonus(uint256 _maxBonus) external onlyOwner {
+        maxBonus = _maxBonus;
+    }
+
     /// @notice Set target coin weights
     /// @param weights Coin weightes to set
     function setTargets(CoinWeight[] memory weights) external onlyOwner {
