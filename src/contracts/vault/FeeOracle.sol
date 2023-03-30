@@ -78,6 +78,7 @@ contract FeeOracle is OwnableUpgradeable {
         DepositFeeParams memory params
     )
         external
+        view
         returns (int256 fee, CoinWeight[] memory weights, uint256 tvlUSD1e18X)
     {
         CoinWeightsParams memory coinWeightParams = CoinWeightsParams({
@@ -138,6 +139,7 @@ contract FeeOracle is OwnableUpgradeable {
         WithdrawalFeeParams memory params
     )
         external
+        view
         returns (int256 fee, CoinWeight[] memory weights, uint256 tvlUSD1e18X)
     {
         CoinWeightsParams memory coinWeightParams = CoinWeightsParams({
