@@ -84,12 +84,12 @@ def reinitialize(_vault: address, _addressRegistry: AddressRegistry, _darkOracle
 @external
 def setFee(_fee: uint256):
     assert msg.sender == self.owner
-    fee = _fee
+    self.fee = _fee
 
 @external
 def setFeeDenominator(_feeDenominator: uint256):
     assert msg.sender == self.owner
-    feeDenominator = _feeDenominator
+    self.feeDenominator = _feeDenominator
 
 @internal
 def getCoinPositionInCPU(cpu: DynArray[CoinPriceUSD, 50], coin: address) -> uint256:
@@ -113,10 +113,10 @@ def processMintRequest(dwp: OracleParams):
         raise "Request expired"
     before_balance: uint256 = IERC20(self.vault).balanceOf(self)
     _amountToMint: uint256 = mr.inputTokenAmount
-    if fee > 0:
-        if feeDenominator < fee:
+    if self.fee > 0:
+        if self.feeDenominator < self.fee:
             raise "invalid feeDenominator"
-        _amountToMint = _amountToMint * (feeDenominator - fee) / feeDenominator
+        _amountToMint = _amountToMint * (self.feeDenominator - self.fee) / self.feeDenominator
     IVault(self.vault).deposit(DepositWithdrawalParams({
         coinPositionInCPU: self.getCoinPositionInCPU(dwp.cpu, mr.coin.address),
         _amount: _amountToMint,
@@ -170,11 +170,11 @@ def processBurnRequest(dwp: OracleParams):
     if block.timestamp > br.expire:
         raise "Request expired"
     before_balance: uint256 = IERC20(self.vault).balanceOf(self)
-    _amountToBurn: uint256 = mr.outputTokenAmount
-    if fee > 0:
-        if feeDenominator < fee:
+    _amountToBurn: uint256 = br.outputTokenAmount
+    if self.fee > 0:
+        if self.feeDenominator < self.fee:
             raise "invalid feeDenominator"
-        _amountToBurn = _amountToBurn * (feeDenominator - fee) / feeDenominator
+        _amountToBurn = _amountToBurn * (self.feeDenominator - self.fee) / self.feeDenominator
     coinPositionInCPU: uint256 = self.getCoinPositionInCPU(dwp.cpu, br.coin.address)
     IVault(self.vault).withdraw(DepositWithdrawalParams({
         coinPositionInCPU: coinPositionInCPU,

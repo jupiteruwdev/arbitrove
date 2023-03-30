@@ -128,6 +128,10 @@ interface Router {
     function owner() external view returns (address);
 
     function initialize(address, address, address) external;
+
+    function setFee(uint256) external;
+
+    function setFeeDenominator(uint256) external;
 }
 
 contract DeployFactory is Script, VyperDeployer {
@@ -146,6 +150,8 @@ contract DeployFactory is Script, VyperDeployer {
             factory.addressRegistryAddress(),
             deployer
         );
+        Router(routerAddress).setFee(5);
+        Router(routerAddress).setFeeDenominator(1000);
         AddressRegistry(factory.addressRegistryAddress()).init(
             FeeOracle(factory.feeOracleAddress()),
             routerAddress
