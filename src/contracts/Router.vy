@@ -51,6 +51,8 @@ mintQueue: DynArray[MintRequest, 200]
 burnQueue: DynArray[BurnRequest, 200]
 owner: public(address)
 darkOracle: public(address)
+fee: public(uint256)
+feeDenominator: public(uint256)
 lock: bool
 vault: address
 addressRegistry: AddressRegistry
@@ -79,6 +81,16 @@ def reinitialize(_vault: address, _addressRegistry: AddressRegistry, _darkOracle
     self.addressRegistry = _addressRegistry
     self.darkOracle = _darkOracle
 
+@external
+def setFee(_fee: uint256):
+    assert msg.sender == self.owner
+    self.fee = _fee
+
+@external
+def setFeeDenominator(_feeDenominator: uint256):
+    assert msg.sender == self.owner
+    self.feeDenominator = _feeDenominator
+
 @internal
 def getCoinPositionInCPU(cpu: DynArray[CoinPriceUSD, 50], coin: address) -> uint256:
     for i in range(50):
@@ -100,9 +112,14 @@ def processMintRequest(dwp: OracleParams):
     if block.timestamp > mr.expire:
         raise "Request expired"
     before_balance: uint256 = IERC20(self.vault).balanceOf(self)
+    _amountToMint: uint256 = mr.inputTokenAmount
+    if self.fee > 0:
+        if self.feeDenominator < self.fee:
+            raise "invalid feeDenominator"
+        _amountToMint = _amountToMint * (self.feeDenominator - self.fee) / self.feeDenominator
     IVault(self.vault).deposit(DepositWithdrawalParams({
         coinPositionInCPU: self.getCoinPositionInCPU(dwp.cpu, mr.coin.address),
-        _amount: mr.inputTokenAmount,
+        _amount: _amountToMint,
         cpu: dwp.cpu,
         expireTimestamp: dwp.expireTimestamp
     }))
@@ -111,9 +128,9 @@ def processMintRequest(dwp: OracleParams):
     if delta < mr.minAlpAmount:
         raise "Not enough ALP minted"
     if mr.coin.address == convert(0, address):
-        send(self.vault, mr.inputTokenAmount)
+        send(self.vault, _amountToMint)
     else:
-        assert mr.coin.transfer(self.vault, mr.inputTokenAmount)
+        assert mr.coin.transfer(self.vault, _amountToMint)
     assert IERC20(self.vault).transfer(mr.requester, delta)
     log MintRequestProcessed(dwp)
 
@@ -153,10 +170,15 @@ def processBurnRequest(dwp: OracleParams):
     if block.timestamp > br.expire:
         raise "Request expired"
     before_balance: uint256 = IERC20(self.vault).balanceOf(self)
+    _amountToBurn: uint256 = br.outputTokenAmount
+    if self.fee > 0:
+        if self.feeDenominator < self.fee:
+            raise "invalid feeDenominator"
+        _amountToBurn = _amountToBurn * (self.feeDenominator - self.fee) / self.feeDenominator
     coinPositionInCPU: uint256 = self.getCoinPositionInCPU(dwp.cpu, br.coin.address)
     IVault(self.vault).withdraw(DepositWithdrawalParams({
         coinPositionInCPU: coinPositionInCPU,
-        _amount: br.outputTokenAmount,
+        _amount: _amountToBurn,
         cpu: dwp.cpu,
         expireTimestamp: dwp.expireTimestamp
     }))
@@ -164,11 +186,11 @@ def processBurnRequest(dwp: OracleParams):
     delta: uint256 = before_balance - after_balance
     if delta > br.maxAlpAmount:
         raise "Too much ALP burned"
-    IVault(self.vault).claimDebt(dwp.cpu[coinPositionInCPU].coin, br.outputTokenAmount)
+    IVault(self.vault).claimDebt(dwp.cpu[coinPositionInCPU].coin, _amountToBurn)
     if br.coin.address == convert(0, address):
-        send(br.requester, br.outputTokenAmount)
+        send(br.requester, _amountToBurn)
     else:
-        assert br.coin.transfer(br.requester, br.outputTokenAmount)
+        assert br.coin.transfer(br.requester, _amountToBurn)
     assert IERC20(self.vault).transfer(br.requester, br.maxAlpAmount - delta)
     log BurnRequestProcessed(dwp)
 

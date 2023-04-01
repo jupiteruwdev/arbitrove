@@ -37,6 +37,14 @@ contract FeeOracle is OwnableUpgradeable {
         weightDenominator = 100;
     }
 
+    function setMaxFee(uint256 _maxFee) external onlyOwner {
+        maxFee = _maxFee;
+    }
+
+    function setMaxBonus(uint256 _maxBonus) external onlyOwner {
+        maxBonus = _maxBonus;
+    }
+
     /// @notice Set target coin weights
     /// @param weights Coin weightes to set
     function setTargets(CoinWeight[] memory weights) external onlyOwner {
@@ -70,6 +78,7 @@ contract FeeOracle is OwnableUpgradeable {
         DepositFeeParams memory params
     )
         external
+        view
         returns (int256 fee, CoinWeight[] memory weights, uint256 tvlUSD1e18X)
     {
         CoinWeightsParams memory coinWeightParams = CoinWeightsParams({
@@ -130,6 +139,7 @@ contract FeeOracle is OwnableUpgradeable {
         WithdrawalFeeParams memory params
     )
         external
+        view
         returns (int256 fee, CoinWeight[] memory weights, uint256 tvlUSD1e18X)
     {
         CoinWeightsParams memory coinWeightParams = CoinWeightsParams({
@@ -200,7 +210,7 @@ contract FeeOracle is OwnableUpgradeable {
     /// @return tvlUSD1e18X TVL for given vault
     function getCoinWeights(
         CoinWeightsParams memory params
-    ) public returns (CoinWeight[] memory weights, uint256 tvlUSD1e18X) {
+    ) public view returns (CoinWeight[] memory weights, uint256 tvlUSD1e18X) {
         weights = new CoinWeight[](targetsLength);
         require(
             block.timestamp < params.expireTimestamp,

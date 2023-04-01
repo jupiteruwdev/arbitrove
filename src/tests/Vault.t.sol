@@ -431,7 +431,7 @@ contract VaultTest is Test, VyperDeployer {
 
     function getExpectedDepositAmount(
         DepositFeeParams memory depositFeeParams
-    ) internal returns (uint256) {
+    ) internal view returns (uint256) {
         address coin = depositFeeParams.cpu[depositFeeParams.position].coin;
         uint256 __decimals = coin == address(0)
             ? 18
@@ -451,7 +451,7 @@ contract VaultTest is Test, VyperDeployer {
 
     function getExpectedWithdrawalAmount(
         WithdrawalFeeParams memory withdrawalFeeParams
-    ) internal returns (uint256) {
+    ) internal view returns (uint256) {
         address coin = withdrawalFeeParams
             .cpu[withdrawalFeeParams.position]
             .coin;
