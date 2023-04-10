@@ -19,9 +19,10 @@ contract FeeOracle is OwnableUpgradeable {
     /// max bonus
     uint256 public maxBonus;
     /// weight denominator for weight calculation
-    uint256 public weightDenominator;
+    uint256 constant weightDenominator = 100;
 
-    event SET_TARGETS(CoinWeight[]);
+    event SetTargets(CoinWeight[] indexed coinWeights);
+    event Initialized(uint256 indexed maxFee, uint256 indexed maxBonus);
 
     constructor() {
         _disableInitializers();
@@ -34,7 +35,8 @@ contract FeeOracle is OwnableUpgradeable {
         __Ownable_init();
         maxFee = _maxFee;
         maxBonus = _maxBonus;
-        weightDenominator = 100;
+
+        emit Initialized(_maxFee, _maxBonus);
     }
 
     function setMaxFee(uint256 _maxFee) external onlyOwner {
@@ -46,9 +48,10 @@ contract FeeOracle is OwnableUpgradeable {
     }
 
     /// @notice Set target coin weights
-    /// @param weights Coin weightes to set
+    /// @param weights Coin weights to set
     function setTargets(CoinWeight[] memory weights) external onlyOwner {
         targetsLength = weights.length;
+        require(weights.length <= 50, "too many weights");
         for (uint8 i; i < weights.length; ) {
             targets[i] = weights[i];
             unchecked {
@@ -56,11 +59,12 @@ contract FeeOracle is OwnableUpgradeable {
             }
         }
         isNormalizedWeightArray(weights);
-        emit SET_TARGETS(weights);
+        emit SetTargets(weights);
     }
 
-    function isInTarget(address coin) public view returns (bool) {
-        for (uint8 i; i < targetsLength; ) {
+    function isInTarget(address coin) external view returns (bool) {
+        uint256 _targetsLength = targetsLength;
+        for (uint8 i; i < _targetsLength; ) {
             if (targets[i].coin == coin) return true;
             unchecked {
                 ++i;
@@ -75,7 +79,7 @@ contract FeeOracle is OwnableUpgradeable {
     /// @return weights Latest coin weights for vault before deposit
     /// @return tvlUSD1e18X Latest tvl for vault before deposit
     function getDepositFee(
-        DepositFeeParams memory params
+        FeeParams memory params
     )
         external
         view
@@ -136,7 +140,7 @@ contract FeeOracle is OwnableUpgradeable {
     /// @return weights Latest coin weight for vault before withdraw
     /// @return tvlUSD1e18X Latest tvl for vault before withdraw
     function getWithdrawalFee(
-        WithdrawalFeeParams memory params
+        FeeParams memory params
     )
         external
         view
@@ -194,8 +198,9 @@ contract FeeOracle is OwnableUpgradeable {
     /// @notice Get targets
     /// @return targets coin weights
     function getTargets() external view returns (CoinWeight[] memory) {
-        CoinWeight[] memory _targets = new CoinWeight[](targetsLength);
-        for (uint8 i; i < targetsLength; ) {
+        uint256 _targetsLength = targetsLength;
+        CoinWeight[] memory _targets = new CoinWeight[](_targetsLength);
+        for (uint8 i; i < _targetsLength; ) {
             _targets[i] = targets[i];
             unchecked {
                 ++i;
@@ -211,15 +216,14 @@ contract FeeOracle is OwnableUpgradeable {
     function getCoinWeights(
         CoinWeightsParams memory params
     ) public view returns (CoinWeight[] memory weights, uint256 tvlUSD1e18X) {
-        weights = new CoinWeight[](targetsLength);
         require(
             block.timestamp < params.expireTimestamp,
             "Execution window passed"
         );
-        // verify signature
-        require(params.cpu.length == targetsLength, "Oracle length error");
-        CoinWeight[50] memory _targets = targets;
         uint256 _targetsLength = targetsLength;
+        weights = new CoinWeight[](_targetsLength);
+        require(params.cpu.length == _targetsLength, "Oracle length error");
+        CoinWeight[50] memory _targets = targets;
         for (uint8 i; i < _targetsLength; ) {
             require(
                 params.cpu[i].coin == _targets[i].coin,
@@ -245,7 +249,7 @@ contract FeeOracle is OwnableUpgradeable {
                 : IERC20Metadata(_targets[i].coin).decimals();
             /// Calculate tvl over the coin weights
             /// Set weight with every coin value
-            /// formula: coinValue = coinAmount * coinPirceUSD / 10**coinDecimal
+            /// formula: coinValue = coinAmount * coinPriceUSD / 10**coinDecimal
             weights[i].weight =
                 (weights[i].weight * params.cpu[i].price) /
                 10 ** __decimals[i];
@@ -276,30 +280,27 @@ contract FeeOracle is OwnableUpgradeable {
         CoinWeight[] memory weights
     ) internal pure {
         uint256 totalWeight = 0;
-        uint8 j;
         for (uint8 i; i < weights.length; ) {
             totalWeight += weights[i].weight;
             unchecked {
                 i++;
             }
-            unchecked {
-                j++;
-            }
         }
         // compensate for rounding errors
-        require(totalWeight >= 100 - j, "Weight error");
+        require(totalWeight >= 100 - weights.length, "Weight error");
         require(totalWeight <= 100, "Weight error 2");
     }
 
     /// @notice Get distance between two weights. The "distance" is calculated as a percentage change of the new weight compared to the target weight.
     /// @param targetWeight Standard weight that calculate distance
     /// @param comparedWeight Compared weight that calculate distance
-    /// @return disatnce
+    /// @return distance
     function getDistance(
         uint256 targetWeight,
         uint256 comparedWeight
-    ) internal view returns (uint256) {
+    ) internal pure returns (uint256) {
         /// formula: distance = abs(targetWeight - comparedWeight) * weightDenominator / targetWeight
+        if (targetWeight == 0) return comparedWeight;
         return
             targetWeight >= comparedWeight
                 ? ((targetWeight - comparedWeight) * weightDenominator) /
