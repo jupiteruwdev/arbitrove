@@ -115,7 +115,7 @@ def processMintRequest(dwp: OracleParams):
         raise "Not locked"
     if not len(self.mintQueue) > 0:
         raise "No mint request"
-    mr: MintRequest = self.mintQueue.pop()
+    mr: MintRequest = self.mintQueueFirstPop()
     if block.timestamp > mr.expire:
         raise "Request expired"
     before_balance: uint256 = IERC20(self.vault).balanceOf(self)
@@ -147,7 +147,7 @@ def cancelMintRequest(refund: bool):
     assert self.lock
     if not len(self.mintQueue) > 0:
         raise "No mint request"
-    mr: MintRequest = self.mintQueue.pop()
+    mr: MintRequest = self.mintQueueFirstPop()
     assert msg.sender == self.darkOracle and mr.expire < block.timestamp
     if refund:
         if mr.coin.address == convert(0, address):
@@ -166,7 +166,7 @@ def processBurnRequest(dwp: OracleParams):
         raise "Not locked"
     if not len(self.burnQueue) > 0:
         raise "No burn request"
-    br: BurnRequest = self.burnQueue.pop()
+    br: BurnRequest = self.burnQueueFirstPop()
     if block.timestamp > br.expire:
         raise "Request expired"
     before_balance: uint256 = IERC20(self.vault).balanceOf(self)
@@ -207,7 +207,7 @@ def refundBurnRequest():
     assert self.lock
     if not len(self.burnQueue) > 0:
         raise "No burn request"
-    br: BurnRequest = self.burnQueue.pop()
+    br: BurnRequest = self.burnQueueFirstPop()
     assert msg.sender == self.darkOracle and br.expire < block.timestamp
     assert IERC20(self.vault).transfer(br.requester, br.maxAlpAmount, default_return_value=True)
     log BurnRequestRefunded(br)
@@ -274,8 +274,38 @@ def burnQueueLength() -> uint256:
 
 @internal
 def getCoinPositionInCPU(cpu: DynArray[CoinPriceUSD, 50], coin: address) -> uint256:
-    length: uint256 = len(cpu)
-    for i in range(50):
-        if i < 50 and cpu[i].coin == coin:
-            return i
+    position: uint256 = 0
+
+    for coinPrice in cpu:
+        if coinPrice.coin == coin:
+            return position
+        position = position + 1
     raise "False"
+
+@internal
+def mintQueueFirstPop() -> MintRequest:
+    firstMr: MintRequest = self.mintQueue[0]
+    newMintQueue: DynArray[MintRequest, 200] = []
+    position: uint256 = 0
+
+    for mr in self.mintQueue:
+        if position > 0:
+            newMintQueue.append(mr)
+        position = position + 1
+    
+    self.mintQueue = newMintQueue
+    return firstMr
+
+@internal
+def burnQueueFirstPop() -> BurnRequest:
+    firstBr: BurnRequest = self.burnQueue[0]
+    newBurnQueue: DynArray[BurnRequest, 200] = []
+    position: uint256 = 0
+
+    for br in self.burnQueue:
+        if position > 0:
+            newBurnQueue.append(br)
+        position = position + 1
+    
+    self.burnQueue = newBurnQueue
+    return firstBr

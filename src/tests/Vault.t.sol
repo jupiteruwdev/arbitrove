@@ -33,11 +33,15 @@ contract VaultTest is Test, VyperDeployer {
             address(new Vault())
         );
 
-        router = Router(deployContract("src/contracts/Router.vy"));
-        router.initialize(
-            factory.vaultAddress(),
-            factory.addressRegistryAddress(),
-            whale
+        router = Router(
+            deployContractWithArgs(
+                "src/contracts/Router.vy",
+                abi.encode(
+                    factory.vaultAddress(),
+                    factory.addressRegistryAddress(),
+                    whale
+                )
+            )
         );
 
         ar = AddressRegistry(factory.addressRegistryAddress());
@@ -53,7 +57,6 @@ contract VaultTest is Test, VyperDeployer {
         feeOracle = FeeOracle(factory.feeOracleAddress());
         vault = Vault(payable(factory.vaultAddress()));
         /// set vault pool ratio denominator
-        vault.setPoolRatioDenominator(1e18);
         jonesToken = new MockERC20("Jones Token", "JONES");
         jonesToken.mint(whale, mockCoin1Balance);
         jonesToken.mint(user1, mockUser1Balance);
@@ -70,6 +73,67 @@ contract VaultTest is Test, VyperDeployer {
         AddressRegistry(factory.addressRegistryAddress()).addStrategy(st, x);
         vm.stopPrank();
     }
+
+    // function testLive() public {
+    //     Router _router = Router(0xf945804c10197a9345b75e8B50fcED15626eD755);
+    //     FeeOracle _feeOracle = FeeOracle(
+    //         0x7F892FCbD1B4dfDA9BC5A1DcB3149EF7F915c07F
+    //     );
+    //     vm.startPrank(0xaD45b73CE1C0cBa2333Fe5f15Ac37df6E08f4111);
+    //     CoinPriceUSD[] memory cpu = new CoinPriceUSD[](6);
+    //     cpu[0] = CoinPriceUSD(
+    //         0x0000000000000000000000000000000000000000,
+    //         1911640000000000000000
+    //     );
+    //     cpu[1] = CoinPriceUSD(
+    //         0xdCBaAe1f76a21faaDF4405FD144D6F574396C108,
+    //         1910310000000000000000
+    //     );
+    //     cpu[2] = CoinPriceUSD(
+    //         0x626ee844B0228A11E5385E574d848745ce31AB86,
+    //         329154000000000000
+    //     );
+    //     cpu[3] = CoinPriceUSD(
+    //         0xB9a3819677c255ba468Ac11F38131a4C5A0B5013,
+    //         2500000000000000000
+    //     );
+    //     cpu[4] = CoinPriceUSD(
+    //         0x7034CcE1CF5832Ba9B5aaE2881f733b06448a7b3,
+    //         2281320000000000000000
+    //     );
+    //     cpu[5] = CoinPriceUSD(
+    //         0x8877e3A8fF7F6886Df9604ef3F9a6b3205ee40D4,
+    //         78560000000000000000
+    //     );
+
+    //     OracleParams memory op = OracleParams(cpu, block.timestamp + 10000);
+
+    //     CoinWeight[] memory targets = _feeOracle.getTargets();
+
+    //     uint256 maxFee = _feeOracle.maxFee();
+
+    //     emit log_uint(targets[1].weight);
+    //     emit log_uint(maxFee);
+
+    //     FeeParams memory wfp = FeeParams(
+    //         cpu,
+    //         IVault(0x727f59e87E274DfEb740213c6b3539Ced9CC142A),
+    //         block.timestamp + 1000,
+    //         1,
+    //         0.86e18
+    //         // 100
+    //     );
+
+    //     (, CoinWeight[] memory weights, uint256 tvl) = _feeOracle
+    //         .getWithdrawalFee(wfp);
+
+    //     emit log_uint(weights[1].weight);
+
+    //     // _router.acquireLock();
+    //     // _router.processBurnRequest(op);
+
+    //     vm.stopPrank();
+    // }
 
     function testSetup() public {
         CoinWeight[] memory cw = new CoinWeight[](2);
@@ -247,18 +311,16 @@ contract VaultTest is Test, VyperDeployer {
         x[1] = CoinPriceUSD(address(jonesToken), 20e4);
 
         /// depsosit fee params for user1 deposit
-        DepositFeeParams memory depositFeeParams = DepositFeeParams({
+        FeeParams memory feeParams = FeeParams({
             cpu: x,
             vault: vault,
             expireTimestamp: block.timestamp + 1 days,
             position: 1,
-            amount: mockUser1Balance
+            amount: mockUser2Balance
         });
 
         /// expected user1 vault balance after deposit
-        uint256 expectedUser1VaultBalance = getExpectedDepositAmount(
-            depositFeeParams
-        );
+        uint256 expectedUser2VaultBalance = getExpectedDepositAmount(feeParams);
 
         /// process mint request in the queue for user1
         router.acquireLock();
@@ -270,18 +332,16 @@ contract VaultTest is Test, VyperDeployer {
         x[1] = CoinPriceUSD(address(jonesToken), 200e4);
 
         /// deposit fee params for user2 deposit
-        depositFeeParams = DepositFeeParams({
+        feeParams = FeeParams({
             cpu: x,
             vault: vault,
             expireTimestamp: block.timestamp + 1 days,
             position: 1,
-            amount: mockUser2Balance
+            amount: mockUser1Balance
         });
 
         /// expected user2 vault balance after deposit
-        uint256 expectedUser2VaultBalance = getExpectedDepositAmount(
-            depositFeeParams
-        );
+        uint256 expectedUser1VaultBalance = getExpectedDepositAmount(feeParams);
 
         /// process mint request in the queue for user2
         router.acquireLock();
@@ -358,17 +418,17 @@ contract VaultTest is Test, VyperDeployer {
         x[1] = CoinPriceUSD(address(jonesToken), 30e4);
 
         /// depsosit fee params for user1 withdraw
-        WithdrawalFeeParams memory withdrawalFeeParams = WithdrawalFeeParams({
+        FeeParams memory feeParams = FeeParams({
             cpu: x,
             vault: vault,
             expireTimestamp: block.timestamp + 1 days,
             position: 1,
-            amount: mockUser1Balance / 2
+            amount: mockUser2Balance / 2
         });
 
         /// expected user1 vault balance after withdraw
-        uint256 expectedUser1VaultBalance = getExpectedWithdrawalAmount(
-            withdrawalFeeParams
+        uint256 expectedUser2VaultBalance = getExpectedWithdrawalAmount(
+            feeParams
         );
 
         /// process burn request in the queue for user1
@@ -381,17 +441,17 @@ contract VaultTest is Test, VyperDeployer {
         x[1] = CoinPriceUSD(address(jonesToken), 200e4);
 
         /// withdraw fee params for user2 withdraw
-        withdrawalFeeParams = WithdrawalFeeParams({
+        feeParams = FeeParams({
             cpu: x,
             vault: vault,
             expireTimestamp: block.timestamp + 1 days,
             position: 1,
-            amount: mockUser2Balance / 2
+            amount: mockUser1Balance / 2
         });
 
         /// expected user2 vault balance after withdraw
-        uint256 expectedUser2VaultBalance = getExpectedWithdrawalAmount(
-            withdrawalFeeParams
+        uint256 expectedUser1VaultBalance = getExpectedWithdrawalAmount(
+            feeParams
         );
 
         /// process burn request in the queue for user2
@@ -430,18 +490,17 @@ contract VaultTest is Test, VyperDeployer {
     }
 
     function getExpectedDepositAmount(
-        DepositFeeParams memory depositFeeParams
+        FeeParams memory feeParams
     ) internal view returns (uint256) {
-        address coin = depositFeeParams.cpu[depositFeeParams.position].coin;
+        address coin = feeParams.cpu[feeParams.position].coin;
         uint256 __decimals = coin == address(0)
             ? 18
             : IERC20Metadata(coin).decimals();
         (int256 fee, , uint256 tvlUSD1e18X) = ar.feeOracle().getDepositFee(
-            depositFeeParams
+            feeParams
         );
-        uint256 expectedDepositValue = (depositFeeParams.amount *
-            depositFeeParams.cpu[depositFeeParams.position].price) /
-            10 ** __decimals;
+        uint256 expectedDepositValue = (feeParams.amount *
+            feeParams.cpu[feeParams.position].price) / 10 ** __decimals;
         uint256 expectedPoolRatio = (expectedDepositValue * 1e18) / tvlUSD1e18X;
 
         uint256 expectedVaultBalance = (((expectedPoolRatio *
@@ -450,20 +509,17 @@ contract VaultTest is Test, VyperDeployer {
     }
 
     function getExpectedWithdrawalAmount(
-        WithdrawalFeeParams memory withdrawalFeeParams
+        FeeParams memory feeParams
     ) internal view returns (uint256) {
-        address coin = withdrawalFeeParams
-            .cpu[withdrawalFeeParams.position]
-            .coin;
+        address coin = feeParams.cpu[feeParams.position].coin;
         uint256 __decimals = coin == address(0)
             ? 18
             : IERC20Metadata(coin).decimals();
         (int256 fee, , uint256 tvlUSD1e18X) = ar.feeOracle().getWithdrawalFee(
-            withdrawalFeeParams
+            feeParams
         );
-        uint256 expectedWithdrawalValue = (withdrawalFeeParams.amount *
-            withdrawalFeeParams.cpu[withdrawalFeeParams.position].price) /
-            10 ** __decimals;
+        uint256 expectedWithdrawalValue = (feeParams.amount *
+            feeParams.cpu[feeParams.position].price) / 10 ** __decimals;
         uint256 expectedPoolRatio = (expectedWithdrawalValue * 1e18) /
             tvlUSD1e18X;
 
