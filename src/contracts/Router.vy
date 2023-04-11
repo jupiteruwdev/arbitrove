@@ -77,9 +77,8 @@ event Suicide: pass
 
 @external
 def __init__(_vault: address, _addressRegistry: AddressRegistry, _darkOracle: address):
-    assert self.owner == empty(address)
-    assert not _vault == convert(0, address)
-    assert not _darkOracle == convert(0, address)
+    assert not _vault == convert(0, address), "Invalid _vault address"
+    assert not _darkOracle == convert(0, address), "Invalid _darkOracle address"
     self.owner = msg.sender
     self.vault = _vault
     self.addressRegistry = _addressRegistry
@@ -88,29 +87,29 @@ def __init__(_vault: address, _addressRegistry: AddressRegistry, _darkOracle: ad
 
 @external
 def reinitialize(_vault: address, _addressRegistry: AddressRegistry, _darkOracle: address):
-    assert msg.sender == self.owner
-    assert not _vault == convert(0, address)
-    assert not _darkOracle == convert(0, address)
+    assert msg.sender == self.owner, "Not a permitted user"
+    assert not _vault == convert(0, address), "Invalid _vault address"
+    assert not _darkOracle == convert(0, address), "Invalid _darkOracle address"
     self.vault = _vault
     self.addressRegistry = _addressRegistry
     self.darkOracle = _darkOracle
 
 @external
 def setFee(_fee: uint256):
-    assert msg.sender == self.owner
+    assert msg.sender == self.owner, "Not a permitted user"
     self.fee = _fee
 
 @external
 def setFeeDenominator(_feeDenominator: uint256):
-    assert msg.sender == self.owner
+    assert msg.sender == self.owner, "Not a permitted user"
     self.feeDenominator = _feeDenominator
 
 # request vault to mint ALP tokens and sends payment tokens to vault afterwards
 @external 
 @nonreentrant("router")
 def processMintRequest(dwp: OracleParams):
-    assert self.addressRegistry.feeOracle().isInTarget(dwp.cpu[0].coin)
-    assert msg.sender == self.darkOracle
+    assert self.addressRegistry.feeOracle().isInTarget(dwp.cpu[0].coin), "Invalid coin for oracle"
+    assert msg.sender == self.darkOracle, "Not a permitted user"
     if not self.lock:
         raise "Not locked"
     if not len(self.mintQueue) > 0:
@@ -122,7 +121,7 @@ def processMintRequest(dwp: OracleParams):
     _amountToMint: uint256 = mr.inputTokenAmount
     if self.fee > 0:
         if self.feeDenominator < self.fee:
-            raise "invalid feeDenominator"
+            raise "Invalid feeDenominator"
         _amountToMint = _amountToMint * (self.feeDenominator - self.fee) / self.feeDenominator
     IVault(self.vault).deposit(DepositWithdrawalParams({
         coinPositionInCPU: self.getCoinPositionInCPU(dwp.cpu, mr.coin.address),
@@ -137,18 +136,18 @@ def processMintRequest(dwp: OracleParams):
     if mr.coin.address == convert(0, address):
         send(self.vault, _amountToMint)
     else:
-        assert mr.coin.transfer(self.vault, _amountToMint)
-    assert IERC20(self.vault).transfer(mr.requester, delta, default_return_value=True)
+        assert mr.coin.transfer(self.vault, _amountToMint), "Coin transfer failed"
+    assert IERC20(self.vault).transfer(mr.requester, delta, default_return_value=True), "ALP transfer failed"
     log MintRequestProcessed(dwp)
 
 @external
 @nonreentrant("router")
 def cancelMintRequest(refund: bool):
-    assert self.lock
+    assert self.lock, "Not locked"
     if not len(self.mintQueue) > 0:
         raise "No mint request"
+    assert msg.sender == self.darkOracle, "Not a permitted user"
     mr: MintRequest = self.mintQueueFirstPop()
-    assert msg.sender == self.darkOracle and mr.expire < block.timestamp
     if refund:
         if mr.coin.address == convert(0, address):
             send(mr.requester, mr.inputTokenAmount)
@@ -160,8 +159,8 @@ def cancelMintRequest(refund: bool):
 @external 
 @nonreentrant("router")
 def processBurnRequest(dwp: OracleParams):
-    assert self.addressRegistry.feeOracle().isInTarget(dwp.cpu[0].coin)
-    assert msg.sender == self.darkOracle
+    assert self.addressRegistry.feeOracle().isInTarget(dwp.cpu[0].coin), "Invalid coin for oracle"
+    assert msg.sender == self.darkOracle, "Not a permitted user"
     if not self.lock:
         raise "Not locked"
     if not len(self.burnQueue) > 0:
@@ -173,7 +172,7 @@ def processBurnRequest(dwp: OracleParams):
     _amountToBurn: uint256 = br.outputTokenAmount
     if self.fee > 0:
         if self.feeDenominator < self.fee:
-            raise "invalid feeDenominator"
+            raise "Invalid feeDenominator"
         _amountToBurn = _amountToBurn * (self.feeDenominator - self.fee) / self.feeDenominator
     coinPositionInCPU: uint256 = self.getCoinPositionInCPU(dwp.cpu, br.coin.address)
     IVault(self.vault).withdraw(DepositWithdrawalParams({
@@ -190,37 +189,37 @@ def processBurnRequest(dwp: OracleParams):
     if br.coin.address == convert(0, address):
         send(br.requester, _amountToBurn)
     else:
-        assert br.coin.transfer(br.requester, _amountToBurn)
-    assert IERC20(self.vault).transfer(br.requester, br.maxAlpAmount - delta, default_return_value=True)
+        assert br.coin.transfer(br.requester, _amountToBurn), "Coin transfer failed"
+    assert IERC20(self.vault).transfer(br.requester, br.maxAlpAmount - delta, default_return_value=True), "ALP transfer failed"
     log BurnRequestProcessed(dwp)
 
 @external
 def refundBack():
     amount: uint256 = self.burntAmounts[msg.sender]
-    assert amount > 0
+    assert amount > 0, "No funds to back"
     self.burntAmounts[msg.sender] = 0
     send(msg.sender, amount)
 
 @external
 @nonreentrant("router")
 def refundBurnRequest():
-    assert self.lock
+    assert self.lock, "Not locked"
     if not len(self.burnQueue) > 0:
         raise "No burn request"
     br: BurnRequest = self.burnQueueFirstPop()
-    assert msg.sender == self.darkOracle and br.expire < block.timestamp
-    assert IERC20(self.vault).transfer(br.requester, br.maxAlpAmount, default_return_value=True)
+    assert msg.sender == self.darkOracle, "Not a permitted user"
+    assert IERC20(self.vault).transfer(br.requester, br.maxAlpAmount, default_return_value=True), "ALP transfer failed"
     log BurnRequestRefunded(br)
 
 # lock submitting new requests before crunching queue
 @external 
 def acquireLock():
-    assert msg.sender == self.darkOracle
+    assert msg.sender == self.darkOracle, "Not a permitted user"
     self.lock = True
 
 @external 
 def releaseLock():
-    assert msg.sender == self.darkOracle
+    assert msg.sender == self.darkOracle, "Not a permitted user"
     self.lock = False
 
 @external
@@ -228,36 +227,36 @@ def releaseLock():
 @payable
 def submitMintRequest(mr: MintRequest):
     
-    assert self.addressRegistry.feeOracle().isInTarget(mr.coin.address)
-    assert self.lock == False
-    assert mr.requester == msg.sender
+    assert self.addressRegistry.feeOracle().isInTarget(mr.coin.address), "Invalid coin for oracle"
+    assert self.lock == False, "Locked"
+    assert mr.requester == msg.sender, "Invalid requester"
     self.mintQueue.append(mr)
     if convert(0, address) != mr.coin.address:
-        assert mr.coin.transferFrom(msg.sender, self, mr.inputTokenAmount)
+        assert mr.coin.transferFrom(msg.sender, self, mr.inputTokenAmount), "Coin transfer failed"
     else:
-        assert msg.value == mr.inputTokenAmount
+        assert msg.value == mr.inputTokenAmount, "Invalid input token amount"
     log MintRequestAdded(mr)
 
 
 @external
 @nonreentrant("router")
 def submitBurnRequest(br: BurnRequest):
-    assert self.addressRegistry.feeOracle().isInTarget(br.coin.address)
-    assert self.lock == False
-    assert br.requester == msg.sender
+    assert self.addressRegistry.feeOracle().isInTarget(br.coin.address), "Invalid coin for oracle"
+    assert self.lock == False, "Locked"
+    assert br.requester == msg.sender, "Invalid requester"
     self.burnQueue.append(br)
-    assert IERC20(self.vault).transferFrom(msg.sender, self, br.maxAlpAmount)
+    assert IERC20(self.vault).transferFrom(msg.sender, self, br.maxAlpAmount), "ALP transfer failed"
     log BurnRequestAdded(br)
 
 @external
 @nonreentrant("router")
 def rescueStuckTokens(token: IERC20, amount: uint256):
-    assert msg.sender == self.owner
-    assert token.transfer(self.owner, amount, default_return_value=True)
+    assert msg.sender == self.owner, "Not a permitted user"
+    assert token.transfer(self.owner, amount, default_return_value=True), "Token transfer failed"
 
 @external
 def suicide():
-    assert msg.sender == self.owner
+    assert msg.sender == self.owner, "Not a permitted user"
     log Suicide()
     selfdestruct(self.owner)
 

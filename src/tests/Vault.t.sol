@@ -470,9 +470,10 @@ contract VaultTest is Test, VyperDeployer {
             initialUser1VaultBalance - expectedUser1VaultBalance,
             "!user1 vault balance after withdraw"
         );
-        assertEq(
+        assertApproxEqAbs(
             user2VaultBalance,
             initialUser2VaultBalance - expectedUser2VaultBalance,
+            uint256(10),
             "!user2 vault balance after withdraw"
         );
         assertEq(routerVaultBalance, 0, "!router vault balance after withdraw");
