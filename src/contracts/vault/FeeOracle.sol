@@ -19,7 +19,7 @@ contract FeeOracle is OwnableUpgradeable {
     /// max bonus
     uint256 public maxBonus;
     /// weight denominator for weight calculation
-    uint256 constant weightDenominator = 100;
+    uint256 constant weightDenominator = 1e18;
 
     event SetTargets(CoinWeight[] indexed coinWeights);
     event Initialized(uint256 indexed maxFee, uint256 indexed maxBonus);
