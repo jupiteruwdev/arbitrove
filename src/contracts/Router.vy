@@ -76,7 +76,7 @@ event Initialized:
 event Suicide: pass
 
 @external
-def initialize(_vault: address, _addressRegistry: AddressRegistry, _darkOracle: address):
+def __init__(_vault: address, _addressRegistry: AddressRegistry, _darkOracle: address):
     assert self.owner == empty(address)
     assert not _vault == convert(0, address)
     assert not _darkOracle == convert(0, address)
