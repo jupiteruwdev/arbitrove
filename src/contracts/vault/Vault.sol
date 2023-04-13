@@ -49,6 +49,8 @@ contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
     /// pool ratio denominator for pool ratio calculation
     uint256 constant poolRatioDenominator = 1e18;
 
+    int256 constant weightDenominator = 1e18;
+
     event SetAddressRegistry(AddressRegistry indexed addressRegistry);
     event SetCoinCap(address indexed coin, uint256 indexed cap);
     event SetBlockCap(uint256 indexed cap);
@@ -168,10 +170,10 @@ contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
                 ((depositValue *
                     poolRatioDenominator *
                     totalSupply() *
-                    uint256(100 - fee)) /
+                    uint256(weightDenominator - fee)) /
                     tvlUSD1e18X /
                     poolRatioDenominator)
-            ) / 100
+            ) / uint256(weightDenominator)
         );
     }
 
@@ -215,10 +217,10 @@ contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
                 ((withdrawalValue *
                     poolRatioDenominator *
                     totalSupply() *
-                    uint256(100 - fee)) /
+                    uint256(weightDenominator - fee)) /
                     tvlUSD1e18X /
                     poolRatioDenominator)
-            ) / 100
+            ) / uint256(weightDenominator)
         );
 
         /// increase claimable debt amount for withdrawing amount of coin later
@@ -281,7 +283,12 @@ contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
         emit DepositEthToStrategy(address(strategy), amount);
     }
 
-    /// @notice Withdraw `amount` of coin from vault
+    /// @notice Rebalance `amount` of coin from vault
+    ///         The rebalance contract will be whitelisted by governance and effective after timelock on a case-by-case basis
+    ///         typically, there will be 2 types of rebalance contract
+    ///             1. on-chain rebalance. use of dexes like uniswap and camelot
+    ///             2. otc rebalance. use of cexes or our partnership relationship with projects to acquire tokens
+    /// @param destination Address of rebalance contract
     /// @param coin Address of coin
     /// @param amount Amount of coin to withdraw
     function rebalance(

@@ -17,34 +17,28 @@ contract FeeOracle is OwnableUpgradeable {
     /// max fee
     uint256 public maxFee;
     /// max bonus
-    uint256 public maxBonus;
+    uint256 constant maxBonus = 0;
     /// weight denominator for weight calculation
     uint256 constant weightDenominator = 1e18;
 
     event SetTargets(CoinWeight[] indexed coinWeights);
-    event Initialized(uint256 indexed maxFee, uint256 indexed maxBonus);
+    event Initialized(uint256 indexed maxFee);
 
     constructor() {
         _disableInitializers();
     }
 
-    function init(uint256 _maxFee, uint256 _maxBonus) external initializer {
+    function init(uint256 _maxFee) external initializer {
         require(_maxFee <= 100, "_maxFee can't greater than 100");
-        require(_maxBonus <= 100, "_maxFee can't greater than 100");
 
         __Ownable_init();
         maxFee = _maxFee;
-        maxBonus = _maxBonus;
 
-        emit Initialized(_maxFee, _maxBonus);
+        emit Initialized(_maxFee);
     }
 
     function setMaxFee(uint256 _maxFee) external onlyOwner {
         maxFee = _maxFee;
-    }
-
-    function setMaxBonus(uint256 _maxBonus) external onlyOwner {
-        maxBonus = _maxBonus;
     }
 
     /// @notice Set target coin weights
@@ -287,8 +281,11 @@ contract FeeOracle is OwnableUpgradeable {
             }
         }
         // compensate for rounding errors
-        require(totalWeight >= 100 - weights.length, "Weight error");
-        require(totalWeight <= 100, "Weight error 2");
+        require(
+            totalWeight >= weightDenominator - weights.length,
+            "Weight error"
+        );
+        require(totalWeight <= weightDenominator, "Weight error 2");
     }
 
     /// @notice Get distance between two weights. The "distance" is calculated as a percentage change of the new weight compared to the target weight.

@@ -49,7 +49,7 @@ contract VaultTest is Test, VyperDeployer {
         Vault(payable(factory.vaultAddress())).init829{value: 1e18}(
             AddressRegistry(factory.addressRegistryAddress())
         );
-        FeeOracle(factory.feeOracleAddress()).init(70, 0);
+        FeeOracle(factory.feeOracleAddress()).init(70);
 
         /// setting up initial data
         CoinWeight[] memory cw = new CoinWeight[](2);
@@ -62,8 +62,8 @@ contract VaultTest is Test, VyperDeployer {
         jonesToken.mint(user1, mockUser1Balance);
         jonesToken.mint(user2, mockUser2Balance);
         jonesToken.mint(address(vault), mockVaultBalance);
-        cw[0] = CoinWeight(address(0), 50);
-        cw[1] = CoinWeight(address(jonesToken), 50);
+        cw[0] = CoinWeight(address(0), 0.5e18);
+        cw[1] = CoinWeight(address(jonesToken), 0.5e18);
         FeeOracle(factory.feeOracleAddress()).setTargets(cw);
         vault.setCoinCapUSD(address(jonesToken), 1000e18);
         vault.setBlockCap(100000e18);
@@ -354,14 +354,16 @@ contract VaultTest is Test, VyperDeployer {
         uint256 jonesTokenUser1Balance = jonesToken.balanceOf(user1);
         uint256 jonesTokenUser2Balance = jonesToken.balanceOf(user2);
 
-        assertEq(
+        assertApproxEqAbs(
             user1VaultBalance,
             expectedUser1VaultBalance,
+            uint256(10),
             "!user1 vault balance after deposit"
         );
-        assertEq(
+        assertApproxEqAbs(
             user2VaultBalance,
             expectedUser2VaultBalance,
+            uint256(10),
             "!user2 vault balance after deposit"
         );
         assertEq(routerVaultBalance, 0, "!router vault balance after deposit");
@@ -465,9 +467,10 @@ contract VaultTest is Test, VyperDeployer {
         uint256 jonesTokenUser1Balance = jonesToken.balanceOf(user1);
         uint256 jonesTokenUser2Balance = jonesToken.balanceOf(user2);
 
-        assertEq(
+        assertApproxEqAbs(
             user1VaultBalance,
             initialUser1VaultBalance - expectedUser1VaultBalance,
+            uint256(10),
             "!user1 vault balance after withdraw"
         );
         assertApproxEqAbs(
@@ -505,7 +508,7 @@ contract VaultTest is Test, VyperDeployer {
         uint256 expectedPoolRatio = (expectedDepositValue * 1e18) / tvlUSD1e18X;
 
         uint256 expectedVaultBalance = (((expectedPoolRatio *
-            vault.totalSupply()) / 1e18) * uint256(100 - fee)) / 100;
+            vault.totalSupply()) / 1e18) * uint256(1e18 - fee)) / 1e18;
         return expectedVaultBalance;
     }
 
@@ -525,7 +528,7 @@ contract VaultTest is Test, VyperDeployer {
             tvlUSD1e18X;
 
         uint256 expectedVaultBalance = (((expectedPoolRatio *
-            vault.totalSupply()) / 1e18) * uint256(100 - fee)) / 100;
+            vault.totalSupply()) / 1e18) * uint256(1e18 - fee)) / 1e18;
         return expectedVaultBalance;
     }
 }
