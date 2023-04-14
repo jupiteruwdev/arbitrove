@@ -62,7 +62,6 @@ darkOracle: public(address)
 fee: public(uint256)
 feeDenominator: public(uint256)
 burntAmounts: public(HashMap[address, uint256])
-lock: bool
 vault: address
 addressRegistry: AddressRegistry
 event MintRequestAdded:
@@ -110,8 +109,6 @@ def processMintRequest(dwp: OracleParams):
     assert self.addressRegistry.feeOracle().isInTarget(dwp.cpu[0].coin), "Invalid coin for oracle"
     assert msg.sender == self.darkOracle, "Not a permitted user"
     assert self.mintQueueBack != 0, "No mint request"
-    if not self.lock:
-        raise "Not locked"
     mr: MintRequest = self.popMintQueue()
     if block.timestamp > mr.expire:
         raise "Request expired"
@@ -140,7 +137,6 @@ def processMintRequest(dwp: OracleParams):
 @external
 @nonreentrant("router")
 def cancelMintRequest(refund: bool):
-    assert self.lock, "Not locked"
     assert self.mintQueueBack != 0, "No mint request"
     assert msg.sender == self.darkOracle, "Not a permitted user"
     mr: MintRequest = self.popMintQueue()
@@ -156,8 +152,6 @@ def processBurnRequest(dwp: OracleParams):
     assert self.addressRegistry.feeOracle().isInTarget(dwp.cpu[0].coin), "Invalid coin for oracle"
     assert msg.sender == self.darkOracle, "Not a permitted user"
     assert self.burnQueueBack != 0, "No burn request"
-    if not self.lock:
-        raise "Not locked"
     br: BurnRequest = self.popBurnQueue()
     if block.timestamp > br.expire:
         raise "Request expired"
@@ -187,7 +181,6 @@ def processBurnRequest(dwp: OracleParams):
 @external
 @nonreentrant("router")
 def refundBurnRequest():
-    assert self.lock, "Not locked"
     assert self.burnQueueBack != 0, "No burn request"
     br: BurnRequest = self.popBurnQueue()
     assert msg.sender == self.darkOracle, "Not a permitted user"
@@ -195,22 +188,10 @@ def refundBurnRequest():
     self.tokenDeposits[self.vault] = self.tokenDeposits[self.vault] - br.maxAlpAmount
     log BurnRequestRefunded(br)
 
-# lock submitting new requests before crunching queue
-@external 
-def acquireLock():
-    assert msg.sender == self.darkOracle, "Not a permitted user"
-    self.lock = True
-
-@external 
-def releaseLock():
-    assert msg.sender == self.darkOracle, "Not a permitted user"
-    self.lock = False
-
 @external
 @nonreentrant("router")
 def submitMintRequest(mr: MintRequest):
     assert self.addressRegistry.feeOracle().isInTarget(mr.coin.address), "Invalid coin for oracle"
-    assert self.lock == False, "Locked"
     assert mr.requester == msg.sender, "Invalid requester"
     assert mr.coin.address != convert(0, address), "Eth deposit is not allowed"
     self.pushMintQueue(mr)
@@ -223,7 +204,6 @@ def submitMintRequest(mr: MintRequest):
 @nonreentrant("router")
 def submitBurnRequest(br: BurnRequest):
     assert self.addressRegistry.feeOracle().isInTarget(br.coin.address), "Invalid coin for oracle"
-    assert self.lock == False, "Locked"
     assert br.requester == msg.sender, "Invalid requester"
     assert br.coin.address != convert(0, address), "Eth withdraw is not allowed"
     self.pushBurnQueue(br)
