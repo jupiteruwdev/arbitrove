@@ -136,13 +136,12 @@ def processMintRequest(dwp: OracleParams):
 
 @external
 @nonreentrant("router")
-def cancelMintRequest(refund: bool):
+def refundMintRequest():
     assert self.mintQueueBack != 0, "No mint request"
-    assert msg.sender == self.darkOracle, "Not a permitted user"
+    assert msg.sender == self.darkOracle or mr.expire < block.timestamp, "Not a permitted user"
     mr: MintRequest = self.popMintQueue()
-    if refund:
-        assert mr.coin.transfer(mr.requester, mr.inputTokenAmount, default_return_value=True)
-        self.tokenDeposits[mr.coin.address] = self.tokenDeposits[mr.coin.address] - mr.inputTokenAmount
+    assert mr.coin.transfer(mr.requester, mr.inputTokenAmount, default_return_value=True)
+    self.tokenDeposits[mr.coin.address] = self.tokenDeposits[mr.coin.address] - mr.inputTokenAmount
     log MintRequestCanceled(mr)
 
 # request vault to burn ALP tokens and mint debt tokens to requester afterwards.
@@ -183,7 +182,7 @@ def processBurnRequest(dwp: OracleParams):
 def refundBurnRequest():
     assert self.burnQueueBack != 0, "No burn request"
     br: BurnRequest = self.popBurnQueue()
-    assert msg.sender == self.darkOracle, "Not a permitted user"
+    assert msg.sender == self.darkOracle or br.expire < block.timestamp, "Not a permitted user"
     assert IERC20(self.vault).transfer(br.requester, br.maxAlpAmount, default_return_value=True), "ALP transfer failed"
     self.tokenDeposits[self.vault] = self.tokenDeposits[self.vault] - br.maxAlpAmount
     log BurnRequestRefunded(br)
