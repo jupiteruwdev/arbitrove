@@ -301,7 +301,7 @@ contract FeeOracle is OwnableUpgradeable {
         bool method
     ) internal pure returns (uint256) {
         /// formula: distance = abs(targetWeight - comparedWeight) * weightDenominator / targetWeight
-        if (targetWeight == 0) return method ? 0 : weightDenominator + 1;
+        if (targetWeight == 0) return method ? 0 : weightDenominator;
         return
             targetWeight >= comparedWeight
                 ? ((targetWeight - comparedWeight) * weightDenominator) /
