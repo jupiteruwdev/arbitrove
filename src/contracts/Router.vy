@@ -138,8 +138,8 @@ def processMintRequest(dwp: OracleParams):
 @nonreentrant("router")
 def refundMintRequest():
     assert self.mintQueueBack != 0, "No mint request"
-    assert msg.sender == self.darkOracle or mr.expire < block.timestamp, "Not a permitted user"
     mr: MintRequest = self.popMintQueue()
+    assert msg.sender == self.darkOracle or mr.expire < block.timestamp, "Not a permitted user"
     assert mr.coin.transfer(mr.requester, mr.inputTokenAmount, default_return_value=True)
     self.tokenDeposits[mr.coin.address] = self.tokenDeposits[mr.coin.address] - mr.inputTokenAmount
     log MintRequestCanceled(mr)
