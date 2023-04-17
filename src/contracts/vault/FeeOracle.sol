@@ -109,11 +109,12 @@ contract FeeOracle is OwnableUpgradeable {
         /// formula: originalDistance = abs(currentWeight - targetWeight) / targetWeight
         uint256 originalDistance = getDistance(
             target.weight,
-            currentCoinWeight.weight
+            currentCoinWeight.weight,
+            false
         );
         /// calculate new distance
         /// formula: newDistance = abs(newWeight - targetWeight) / targetWeight
-        uint256 newDistance = getDistance(target.weight, newWeight);
+        uint256 newDistance = getDistance(target.weight, newWeight, false);
         require(newDistance < weightDenominator, "Too far away from target");
         if (originalDistance > newDistance) {
             // bonus
@@ -170,11 +171,12 @@ contract FeeOracle is OwnableUpgradeable {
         /// formula: originalDistance = abs(currentWeight - targetWeight) / targetWeight
         uint256 originalDistance = getDistance(
             target.weight,
-            currentCoinWeight.weight
+            currentCoinWeight.weight,
+            true
         );
         /// calculate new distance
         /// formula: newDistance = abs(newWeight - targetWeight) / targetWeight
-        uint256 newDistance = getDistance(target.weight, newWeight);
+        uint256 newDistance = getDistance(target.weight, newWeight, true);
         require(newDistance < weightDenominator, "Too far away from target");
         if (originalDistance > newDistance) {
             // bonus
@@ -291,13 +293,15 @@ contract FeeOracle is OwnableUpgradeable {
     /// @notice Get distance between two weights. The "distance" is calculated as a percentage change of the new weight compared to the target weight.
     /// @param targetWeight Standard weight that calculate distance
     /// @param comparedWeight Compared weight that calculate distance
+    /// @param method deposit or withdraw
     /// @return distance
     function getDistance(
         uint256 targetWeight,
-        uint256 comparedWeight
+        uint256 comparedWeight,
+        bool method
     ) internal pure returns (uint256) {
         /// formula: distance = abs(targetWeight - comparedWeight) * weightDenominator / targetWeight
-        if (targetWeight == 0) return comparedWeight;
+        if (targetWeight == 0) return method ? 0 : weightDenominator + 1;
         return
             targetWeight >= comparedWeight
                 ? ((targetWeight - comparedWeight) * weightDenominator) /
