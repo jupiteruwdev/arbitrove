@@ -27,8 +27,8 @@ interface IERC20:
     def transfer(a: address, c: uint256) -> bool: nonpayable
 
 interface IVault:
-    def deposit(dwp: DepositWithdrawalParams): payable
-    def withdraw(dwp: DepositWithdrawalParams): payable
+    def deposit(dwp: DepositWithdrawalParams): nonpayable
+    def withdraw(dwp: DepositWithdrawalParams): nonpayable
     def claimDebt(a: address, b: uint256): nonpayable
     def transferFrom(a: address, b: address, c: uint256) -> bool: nonpayable
     
@@ -47,13 +47,21 @@ struct BurnRequest:
     requester: address
     expire: uint256
 
-mintQueue: DynArray[MintRequest, 200]
-burnQueue: DynArray[BurnRequest, 200]
+mintQueue: HashMap[uint256, MintRequest]
+burnQueue: HashMap[uint256, BurnRequest]
+mintQueueFront: public(uint256)
+mintQueueBack: public(uint256)
+burnQueueFront: public(uint256)
+burnQueueBack: public(uint256)
+tokenDeposits: HashMap[address, uint256]
 owner: public(address)
+# dark oracle is an ethereum account hosted on the secure HSM on google cloud platform running the code to capture prices from coingecko pro price stream, coinAPI price stream and historic on chain pricing from the most traded dex for the particular coin.
+# it will process mint and burn requests of users using the price it derived. 
+# The dark oracle is opensourced and a real-only service account will be provided to the public to verify our claims any time.
 darkOracle: public(address)
 fee: public(uint256)
 feeDenominator: public(uint256)
-lock: bool
+burntAmounts: public(HashMap[address, uint256])
 vault: address
 addressRegistry: AddressRegistry
 event MintRequestAdded:
@@ -64,58 +72,52 @@ event MintRequestProcessed:
     op: OracleParams
 event BurnRequestProcessed:
     op: OracleParams
+event MintRequestCanceled:
+    mr: MintRequest
+event BurnRequestRefunded:
+    br: BurnRequest
+event Initialized:
+    vault: indexed(address)
+    addressRegistry: AddressRegistry
+    darkOracle: indexed(address)
+event Suicide: pass
 
 @external
-def initialize(_vault: address, _addressRegistry: AddressRegistry, _darkOracle: address):
-    assert self.owner == empty(address)
+def __init__(_vault: address, _addressRegistry: AddressRegistry, _darkOracle: address):
+    assert not _vault == convert(0, address), "Invalid _vault address"
+    assert not _darkOracle == convert(0, address), "Invalid _darkOracle address"
     self.owner = msg.sender
     self.vault = _vault
     self.addressRegistry = _addressRegistry
     self.darkOracle = _darkOracle
-
-@external
-def reinitialize(_vault: address, _addressRegistry: AddressRegistry, _darkOracle: address):
-    assert msg.sender == self.owner
-    self.owner = msg.sender
-    self.vault = _vault
-    self.addressRegistry = _addressRegistry
-    self.darkOracle = _darkOracle
+    log Initialized(_vault, _addressRegistry, _darkOracle)
 
 @external
 def setFee(_fee: uint256):
-    assert msg.sender == self.owner
+    assert msg.sender == self.owner, "Not a permitted user"
     self.fee = _fee
 
 @external
 def setFeeDenominator(_feeDenominator: uint256):
-    assert msg.sender == self.owner
+    assert msg.sender == self.owner, "Not a permitted user"
     self.feeDenominator = _feeDenominator
-
-@internal
-def getCoinPositionInCPU(cpu: DynArray[CoinPriceUSD, 50], coin: address) -> uint256:
-    for i in range(50):
-        if i < len(cpu) and cpu[i].coin == coin:
-            return i
-    raise "False"
 
 # request vault to mint ALP tokens and sends payment tokens to vault afterwards
 @external 
 @nonreentrant("router")
 def processMintRequest(dwp: OracleParams):
-    assert self.addressRegistry.feeOracle().isInTarget(dwp.cpu[0].coin)
-    assert msg.sender == self.darkOracle
-    if not self.lock:
-        raise "Not locked"
-    if not len(self.mintQueue) > 0:
-        raise "No mint request"
-    mr: MintRequest = self.mintQueue.pop()
+    assert self.addressRegistry.feeOracle().isInTarget(dwp.cpu[0].coin), "Invalid coin for oracle"
+    assert msg.sender == self.darkOracle, "Not a permitted user"
+    assert self.mintQueueBack != 0, "No mint request"
+    mr: MintRequest = self.popMintQueue()
     if block.timestamp > mr.expire:
         raise "Request expired"
     before_balance: uint256 = IERC20(self.vault).balanceOf(self)
     _amountToMint: uint256 = mr.inputTokenAmount
+    # taken off protocol fee
     if self.fee > 0:
         if self.feeDenominator < self.fee:
-            raise "invalid feeDenominator"
+            raise "Invalid feeDenominator"
         _amountToMint = _amountToMint * (self.feeDenominator - self.fee) / self.feeDenominator
     IVault(self.vault).deposit(DepositWithdrawalParams({
         coinPositionInCPU: self.getCoinPositionInCPU(dwp.cpu, mr.coin.address),
@@ -127,125 +129,168 @@ def processMintRequest(dwp: OracleParams):
     delta: uint256 = after_balance - before_balance
     if delta < mr.minAlpAmount:
         raise "Not enough ALP minted"
-    if mr.coin.address == convert(0, address):
-        send(self.vault, _amountToMint)
-    else:
-        assert mr.coin.transfer(self.vault, _amountToMint)
-    assert IERC20(self.vault).transfer(mr.requester, delta)
+    assert mr.coin.transfer(self.vault, _amountToMint), "Coin transfer failed"
+    assert IERC20(self.vault).transfer(mr.requester, delta, default_return_value=True), "ALP transfer failed"
+    self.tokenDeposits[mr.coin.address] = self.tokenDeposits[mr.coin.address] - mr.inputTokenAmount
     log MintRequestProcessed(dwp)
 
 @external
-@view
-def mintQueueLength() -> uint256:
-    return len(self.mintQueue)
-
-@external
-@view
-def burnQueueLength() -> uint256:
-    return len(self.burnQueue)
-
-@external
 @nonreentrant("router")
-def cancelMintRequest(refund: bool):
-    assert self.lock
-    mr: MintRequest = self.mintQueue.pop()
-    assert msg.sender == self.darkOracle or mr.expire < block.timestamp
-    if refund:
-        if mr.coin.address == convert(0, address):
-            send(mr.requester, mr.inputTokenAmount)
-        else:
-            assert mr.coin.transfer(mr.requester, mr.inputTokenAmount)
+def refundMintRequest():
+    assert self.mintQueueBack != 0, "No mint request"
+    mr: MintRequest = self.popMintQueue()
+    assert msg.sender == self.darkOracle or mr.expire < block.timestamp, "Not a permitted user"
+    assert mr.coin.transfer(mr.requester, mr.inputTokenAmount, default_return_value=True)
+    self.tokenDeposits[mr.coin.address] = self.tokenDeposits[mr.coin.address] - mr.inputTokenAmount
+    log MintRequestCanceled(mr)
 
 # request vault to burn ALP tokens and mint debt tokens to requester afterwards.
 @external 
 @nonreentrant("router")
 def processBurnRequest(dwp: OracleParams):
-    assert self.addressRegistry.feeOracle().isInTarget(dwp.cpu[0].coin)
-    assert msg.sender == self.darkOracle
-    if not self.lock:
-        raise "Not locked"
-    if not len(self.burnQueue) > 0:
-        raise "No burn request"
-    br: BurnRequest = self.burnQueue.pop()
+    assert self.addressRegistry.feeOracle().isInTarget(dwp.cpu[0].coin), "Invalid coin for oracle"
+    assert msg.sender == self.darkOracle, "Not a permitted user"
+    assert self.burnQueueBack != 0, "No burn request"
+    br: BurnRequest = self.popBurnQueue()
     if block.timestamp > br.expire:
         raise "Request expired"
     before_balance: uint256 = IERC20(self.vault).balanceOf(self)
-    _amountToBurn: uint256 = br.outputTokenAmount
-    if self.fee > 0:
-        if self.feeDenominator < self.fee:
-            raise "invalid feeDenominator"
-        _amountToBurn = _amountToBurn * (self.feeDenominator - self.fee) / self.feeDenominator
     coinPositionInCPU: uint256 = self.getCoinPositionInCPU(dwp.cpu, br.coin.address)
     IVault(self.vault).withdraw(DepositWithdrawalParams({
         coinPositionInCPU: coinPositionInCPU,
-        _amount: _amountToBurn,
+        _amount: br.outputTokenAmount,
         cpu: dwp.cpu,
         expireTimestamp: dwp.expireTimestamp
     }))
     after_balance: uint256 = IERC20(self.vault).balanceOf(self)
     delta: uint256 = before_balance - after_balance
+    # taken off protocol fee
+    if self.fee > 0:
+        if self.feeDenominator < self.fee:
+            raise "Invalid feeDenominator"
+        delta = delta * (self.feeDenominator + self.fee) / self.feeDenominator
     if delta > br.maxAlpAmount:
         raise "Too much ALP burned"
-    IVault(self.vault).claimDebt(dwp.cpu[coinPositionInCPU].coin, _amountToBurn)
-    if br.coin.address == convert(0, address):
-        send(br.requester, _amountToBurn)
-    else:
-        assert br.coin.transfer(br.requester, _amountToBurn)
-    assert IERC20(self.vault).transfer(br.requester, br.maxAlpAmount - delta)
+    IVault(self.vault).claimDebt(dwp.cpu[coinPositionInCPU].coin, br.outputTokenAmount)
+    assert br.coin.transfer(br.requester, br.outputTokenAmount), "Coin transfer failed"
+    assert IERC20(self.vault).transfer(br.requester, br.maxAlpAmount - delta, default_return_value=True), "ALP transfer failed"
+    self.tokenDeposits[self.vault] = self.tokenDeposits[self.vault] - br.maxAlpAmount
     log BurnRequestProcessed(dwp)
 
 @external
 @nonreentrant("router")
 def refundBurnRequest():
-    assert self.lock
-    br: BurnRequest = self.burnQueue.pop()
-    assert msg.sender == self.darkOracle or br.expire < block.timestamp
-    assert IERC20(self.vault).transfer(br.requester, br.maxAlpAmount)
-
-# lock submitting new requests before crunching queue
-@external 
-def acquireLock():
-    assert msg.sender == self.darkOracle
-    self.lock = True
-
-@external 
-def releaseLock():
-    assert msg.sender == self.darkOracle
-    self.lock = False
+    assert self.burnQueueBack != 0, "No burn request"
+    br: BurnRequest = self.popBurnQueue()
+    assert msg.sender == self.darkOracle or br.expire < block.timestamp, "Not a permitted user"
+    assert IERC20(self.vault).transfer(br.requester, br.maxAlpAmount, default_return_value=True), "ALP transfer failed"
+    self.tokenDeposits[self.vault] = self.tokenDeposits[self.vault] - br.maxAlpAmount
+    log BurnRequestRefunded(br)
 
 @external
 @nonreentrant("router")
-@payable
 def submitMintRequest(mr: MintRequest):
-    
-    assert self.addressRegistry.feeOracle().isInTarget(mr.coin.address)
-    assert self.lock == False
-    assert mr.requester == msg.sender
-    self.mintQueue.append(mr)
-    if convert(0, address) != mr.coin.address:
-        assert mr.coin.transferFrom(msg.sender, self, mr.inputTokenAmount)
-    else:
-        assert msg.value == mr.inputTokenAmount
+    assert self.addressRegistry.feeOracle().isInTarget(mr.coin.address), "Invalid coin for oracle"
+    assert mr.requester == msg.sender, "Invalid requester"
+    assert mr.coin.address != convert(0, address), "Eth deposit is not allowed"
+    self.pushMintQueue(mr)
+    assert mr.coin.transferFrom(msg.sender, self, mr.inputTokenAmount), "Coin transfer failed"
+    self.tokenDeposits[mr.coin.address] = self.tokenDeposits[mr.coin.address] + mr.inputTokenAmount 
     log MintRequestAdded(mr)
 
 
 @external
 @nonreentrant("router")
 def submitBurnRequest(br: BurnRequest):
-    assert self.addressRegistry.feeOracle().isInTarget(br.coin.address)
-    assert self.lock == False
-    assert br.requester == msg.sender
-    self.burnQueue.append(br)
-    assert IERC20(self.vault).transferFrom(msg.sender, self, br.maxAlpAmount)
+    assert self.addressRegistry.feeOracle().isInTarget(br.coin.address), "Invalid coin for oracle"
+    assert br.requester == msg.sender, "Invalid requester"
+    assert br.coin.address != convert(0, address), "Eth withdraw is not allowed"
+    self.pushBurnQueue(br)
+    assert IERC20(self.vault).transferFrom(msg.sender, self, br.maxAlpAmount), "ALP transfer failed"
+    self.tokenDeposits[self.vault] = self.tokenDeposits[self.vault] + br.maxAlpAmount
     log BurnRequestAdded(br)
 
 @external
 @nonreentrant("router")
 def rescueStuckTokens(token: IERC20, amount: uint256):
-    assert msg.sender == self.owner
-    assert token.transfer(self.owner, amount)
+    assert msg.sender == self.owner, "Not a permitted user"
+    assert amount + self.tokenDeposits[token.address] <= token.balanceOf(self), "Too much amount to rescue"
+    assert token.transfer(self.owner, amount, default_return_value=True), "Token transfer failed"
 
 @external
 def suicide():
-    assert msg.sender == self.owner
+    assert msg.sender == self.owner, "Not a permitted user"
+    assert self.balance == 0, "Too many eth"
+    log Suicide()
     selfdestruct(self.owner)
+
+@external
+@view
+def mintQueueLength() -> uint256:
+    if self.mintQueueBack != 0:
+        return self.mintQueueBack - self.mintQueueFront + 1
+    return 0
+
+@external
+@view
+def burnQueueLength() -> uint256:
+    if self.burnQueueBack != 0:
+        return self.burnQueueBack - self.burnQueueFront + 1
+    return 0
+
+
+@internal
+def getCoinPositionInCPU(cpu: DynArray[CoinPriceUSD, 50], coin: address) -> uint256:
+    position: uint256 = 0
+
+    for coinPrice in cpu:
+        if coinPrice.coin == coin:
+            return position
+        position = position + 1
+    raise "False"
+
+@internal
+def pushMintQueue(mr: MintRequest):
+    if self.mintQueueBack == 0:
+        self.mintQueueFront = 1
+        self.mintQueueBack = 1
+        self.mintQueue[1] = mr
+    else:
+        self.mintQueue[self.mintQueueBack + 1] = mr
+        self.mintQueueBack = self.mintQueueBack + 1
+
+@internal
+def popMintQueue() -> MintRequest:
+    if self.mintQueueBack != 0:
+        mr: MintRequest = self.mintQueue[self.mintQueueFront]
+        self.mintQueue[self.mintQueueFront] = empty(MintRequest)
+        if self.mintQueueFront == self.mintQueueBack:
+            self.mintQueueFront = 0
+            self.mintQueueBack = 0
+        else:
+            self.mintQueueFront = self.mintQueueFront + 1
+        return mr
+    return empty(MintRequest)
+
+@internal
+def pushBurnQueue(br: BurnRequest):
+    if self.burnQueueBack == 0:
+        self.burnQueueFront = 1
+        self.burnQueueBack = 1
+        self.burnQueue[1] = br
+    else:
+        self.burnQueue[self.burnQueueBack + 1] = br
+        self.burnQueueBack = self.burnQueueBack + 1
+
+@internal
+def popBurnQueue() -> BurnRequest:
+    if self.burnQueueBack != 0:
+        br: BurnRequest = self.burnQueue[self.burnQueueFront]
+        self.burnQueue[self.burnQueueFront] = empty(BurnRequest)
+        if self.burnQueueFront == self.burnQueueBack:
+            self.burnQueueFront = 0
+            self.burnQueueBack = 0
+        else:
+            self.burnQueueFront = self.burnQueueFront + 1
+        return br
+    return empty(BurnRequest)
