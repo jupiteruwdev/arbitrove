@@ -48,9 +48,9 @@ contract VyperDeployer {
     ///@notice If deployment fails, an error will be thrown
     ///@param fileName - The file name of the Vyper contract. For example, the file name for "SimpleStore.vy" is "SimpleStore"
     ///@return deployedAddress - The address that the contract was deployed to
-    function deployContract(
+    function deployContractWithArgs(
         string memory fileName,
-        bytes calldata args
+        bytes memory args
     ) public returns (address) {
         ///@notice create a list of strings with the commands necessary to compile Vyper contracts
         string[] memory cmds = new string[](2);
@@ -132,23 +132,36 @@ interface Router {
     function setFee(uint256) external;
 
     function setFeeDenominator(uint256) external;
+
+    function mintQueueLength() external returns (uint256);
+
+    function burnQueueLength() external returns (uint256);
+
+    function mintQueueFront() external returns (uint256);
+
+    function mintQueueBack() external returns (uint256);
+
+    function burnQueueFront() external returns (uint256);
+
+    function burnQueueBack() external returns (uint256);
 }
 
 contract DeployFactory is Script, VyperDeployer {
     function run() external {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
         uint256 blockCap = vm.envUint("BLOCK_CAP");
-        uint256 poolRatioDenominator = vm.envUint("POOL_RATIO_DENOMINATOR");
         address deployer = vm.addr(deployerPrivateKey);
 
         vm.startBroadcast(deployerPrivateKey);
 
         FactoryArbitrove factory = new FactoryArbitrove();
-        address routerAddress = deployContract("src/contracts/Router.vy");
-        Router(routerAddress).initialize(
-            factory.vaultAddress(),
-            factory.addressRegistryAddress(),
-            deployer
+        address routerAddress = deployContractWithArgs(
+            "src/contracts/Router.vy",
+            abi.encode(
+                factory.vaultAddress(),
+                factory.addressRegistryAddress(),
+                deployer
+            )
         );
         Router(routerAddress).setFee(5);
         Router(routerAddress).setFeeDenominator(1000);
@@ -160,10 +173,7 @@ contract DeployFactory is Script, VyperDeployer {
             AddressRegistry(factory.addressRegistryAddress())
         );
         Vault(payable(factory.vaultAddress())).setBlockCap(blockCap);
-        Vault(payable(factory.vaultAddress())).setPoolRatioDenominator(
-            poolRatioDenominator
-        );
-        FeeOracle(factory.feeOracleAddress()).init(20, 0);
+        FeeOracle(factory.feeOracleAddress()).init(20);
 
         console.log("router: ");
         console.log(routerAddress);

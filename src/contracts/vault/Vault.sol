@@ -5,6 +5,7 @@ import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@vault/IVault.sol";
 import "@strategy/IStrategy.sol";
 import "@/AddressRegistry.sol";
@@ -12,6 +13,7 @@ import "@structs/structs.sol";
 
 /// The Vault contract provides a secure and flexible platform for depositing and withdrawing coins, as well as approving and depositing ETH to strategies.
 contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
+    using SafeERC20 for IERC20;
     struct DepositParams {
         /// Deposit coin position in cpu array
         uint256 coinPositionInCPU;
@@ -39,15 +41,28 @@ contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
     /// only process certain amount of USD per coin
     mapping(address => uint256) public coinCap;
     /// block cap USD for block number
-    mapping(uint => uint256) public blockCapCounter;
+    mapping(uint256 => uint256) public blockCapCounter;
     /// only process certain amount of tx in USD per block
     uint256 public blockCapUSD;
     /// claimable debt amount for routers
     mapping(address => uint256) public debt;
     /// pool ratio denominator for pool ratio calculation
-    uint256 public poolRatioDenominator;
+    uint256 constant poolRatioDenominator = 1e18;
 
-    event SET_ADDRESS_REGISTRY(AddressRegistry);
+    int256 constant weightDenominator = 1e18;
+
+    event SetAddressRegistry(AddressRegistry indexed addressRegistry);
+    event SetCoinCap(address indexed coin, uint256 indexed cap);
+    event SetBlockCap(uint256 indexed cap);
+    event DepositEthToStrategy(
+        address indexed strategy,
+        uint256 indexed amount
+    );
+    event Rebalance(
+        address indexed destination,
+        address indexed coin,
+        uint256 indexed amount
+    );
 
     constructor() {
         _disableInitializers();
@@ -76,12 +91,7 @@ contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
         __ERC20_init("ALP", "ALP");
         addressRegistry = _addressRegistry;
         _mint(msg.sender, msg.value);
-    }
-
-    function setPoolRatioDenominator(
-        uint256 _poolRatioDenominator
-    ) external onlyOwner {
-        poolRatioDenominator = _poolRatioDenominator;
+        emit SetAddressRegistry(_addressRegistry);
     }
 
     /// @notice Set addressRegistry
@@ -96,26 +106,29 @@ contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
 
         addressRegistry = _addressRegistry;
 
-        emit SET_ADDRESS_REGISTRY(_addressRegistry);
+        emit SetAddressRegistry(_addressRegistry);
     }
 
     /// @notice Set coin cap usd
     /// @param coin Address of coin to set cap
     /// @param cap Amount of cap to set
     function setCoinCapUSD(address coin, uint256 cap) external onlyOwner {
+        require(coin != address(0), "invalid coin address");
         coinCap[coin] = cap;
+        emit SetCoinCap(coin, cap);
     }
 
     /// @notice Set block cap for vault
     /// @param cap Amount of cap to set
     function setBlockCap(uint256 cap) external onlyOwner {
         blockCapUSD = cap;
+        emit SetBlockCap(cap);
     }
 
     /// @notice Deposit. Note that the deposit amount is transferred to the vault from the router after checking the amount of ALP minted. If the amount of ALP minted is not correct, the call will revert and the router will refund.
     /// @param params Deposit params
     function deposit(DepositParams memory params) external onlyRouter {
-        DepositFeeParams memory depositFeeParams = DepositFeeParams({
+        FeeParams memory feeParams = FeeParams({
             cpu: params.cpu,
             vault: this,
             expireTimestamp: params.expireTimestamp,
@@ -146,22 +159,28 @@ contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
         /// Get deposit fee and tvl before deposit
         (int256 fee, , uint256 tvlUSD1e18X) = addressRegistry
             .feeOracle()
-            .getDepositFee(depositFeeParams);
-        uint256 poolRatio = (depositValue * poolRatioDenominator) / tvlUSD1e18X;
+            .getDepositFee(feeParams);
 
         /// vault token mint
-        /// fomula: poolRatio * totalSupply / (poolRatio denomiator) * (100 - fee) / (fee decominator)
+        /// poolRatio = depositValue * poolRatio denominator / tvl
+        /// formula: poolRatio * totalSupply / (poolRatio denominator) * (100 - fee) / (fee denominator)
         _mint(
             msg.sender,
-            (((poolRatio * totalSupply()) / poolRatioDenominator) *
-                uint256(100 - fee)) / 100
+            (
+                ((depositValue *
+                    poolRatioDenominator *
+                    totalSupply() *
+                    uint256(weightDenominator - fee)) /
+                    tvlUSD1e18X /
+                    poolRatioDenominator)
+            ) / uint256(weightDenominator)
         );
     }
 
     /// @notice Withdraw. Note that the amount of ALP burned is checked before the router calls `claimDebt` subsequently to claim the token. If the amount of ALP burned is not correct, the call will revert and the router will refund.
     /// @param params Withdraw params
     function withdraw(WithdrawalParams memory params) external onlyRouter {
-        WithdrawalFeeParams memory withdrawalFeeParams = WithdrawalFeeParams({
+        FeeParams memory feeParams = FeeParams({
             cpu: params.cpu,
             vault: this,
             expireTimestamp: params.expireTimestamp,
@@ -187,16 +206,21 @@ contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
         /// Get withdrawal fee and tvl before withdraw
         (int256 fee, , uint256 tvlUSD1e18X) = addressRegistry
             .feeOracle()
-            .getWithdrawalFee(withdrawalFeeParams);
-        uint256 poolRatio = (withdrawalValue * poolRatioDenominator) /
-            tvlUSD1e18X;
+            .getWithdrawalFee(feeParams);
 
         /// burn vault token
-        /// formula: poolRatio * totalSupply * (100 - fee) / 100 (fee decominator) / 10000 (poolRatio denomiator)
+        /// poolRatio = withdrawalValue * poolRatio denominator / tvl
+        /// formula: poolRatio * totalSupply * (100 - fee) / 100 (fee denominator) / 10000 (poolRatio denominator)
         _burn(
             msg.sender,
-            (((poolRatio * totalSupply()) / poolRatioDenominator) *
-                uint256(100 - fee)) / 100
+            (
+                ((withdrawalValue *
+                    poolRatioDenominator *
+                    totalSupply() *
+                    uint256(weightDenominator - fee)) /
+                    tvlUSD1e18X /
+                    poolRatioDenominator)
+            ) / uint256(weightDenominator)
         );
 
         /// increase claimable debt amount for withdrawing amount of coin later
@@ -210,7 +234,7 @@ contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
         require(debt[coin] >= amount, "insufficient debt amount for coin");
         debt[coin] -= amount;
         if (coin == address(0)) payable(msg.sender).transfer(amount);
-        else require(IERC20(coin).transfer(msg.sender, amount));
+        else IERC20(coin).safeTransfer(msg.sender, amount);
     }
 
     /// @notice Approve `amount` of coin for strategy to use
@@ -222,8 +246,9 @@ contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
         address coin,
         uint256 amount
     ) external onlyOwner {
+        require(address(strategy) != address(0), "invalid strategy address");
         require(
-            addressRegistry.getWhitelistedStrategies(strategy),
+            addressRegistry.isWhitelistedStrategy(strategy),
             "strategy is not whitelisted"
         );
 
@@ -234,7 +259,7 @@ contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
             if (address(strategies[i]) == address(strategy)) break;
         }
         require(
-            i == strategies.length,
+            i != strategies.length,
             "provided coin is not the part of strategy"
         );
 
@@ -252,12 +277,18 @@ contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
         IStrategy strategy,
         uint256 amount
     ) external onlyOwner {
-        require(addressRegistry.getWhitelistedStrategies(strategy));
+        require(addressRegistry.isWhitelistedStrategy(strategy));
         (bool depositSuccess, ) = address(strategy).call{value: amount}("");
         require(depositSuccess, "Deposit failed");
+        emit DepositEthToStrategy(address(strategy), amount);
     }
 
-    /// @notice Withdraw `amount` of coin from vault
+    /// @notice Rebalance `amount` of coin from vault
+    ///         The rebalance contract will be whitelisted by governance and effective after timelock on a case-by-case basis
+    ///         typically, there will be 2 types of rebalance contract
+    ///             1. on-chain rebalance. use of dexes like uniswap and camelot
+    ///             2. otc rebalance. use of cexes or our partnership relationship with projects to acquire tokens
+    /// @param destination Address of rebalance contract
     /// @param coin Address of coin
     /// @param amount Amount of coin to withdraw
     function rebalance(
@@ -265,9 +296,11 @@ contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
         address coin,
         uint256 amount
     ) external onlyOwner {
-        require(addressRegistry.getWhitelistedRebalancer(destination));
+        require(destination != address(0), "invalid destination");
+        require(addressRegistry.isWhitelistedRebalancer(destination));
         if (coin == address(0)) payable(destination).transfer(amount);
-        else require(IERC20(coin).transfer(destination, amount));
+        else IERC20(coin).safeTransfer(destination, amount);
+        emit Rebalance(destination, coin, amount);
     }
 
     /// @notice Get aggregated amount of coin for vault and strategies

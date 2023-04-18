@@ -29,15 +29,7 @@ struct CoinWeightsParams {
     uint256 expireTimestamp;
 }
 
-struct DepositFeeParams {
-    CoinPriceUSD[] cpu;
-    IVault vault;
-    uint256 expireTimestamp;
-    uint256 position;
-    uint256 amount;
-}
-
-struct WithdrawalFeeParams {
+struct FeeParams {
     CoinPriceUSD[] cpu;
     IVault vault;
     uint256 expireTimestamp;
