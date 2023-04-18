@@ -199,9 +199,7 @@ contract VaultTest is Test, VyperDeployer {
         assertEq(feeOracle.getTargets()[0].coin, x[0].coin);
 
         /// process mint request in the queue
-        router.acquireLock();
         router.processMintRequest(OracleParams(x, block.timestamp + 1 days));
-        router.releaseLock();
 
         uint256 routerVaultBalance = vault.balanceOf(address(router));
         uint256 whaleVaultBalance = vault.balanceOf(whale);
@@ -241,9 +239,7 @@ contract VaultTest is Test, VyperDeployer {
             )
         );
 
-        router.acquireLock();
         router.processBurnRequest(OracleParams(x, block.timestamp + 1 days));
-        router.releaseLock();
 
         assertEq(
             jonesToken.balanceOf(address(router)),
@@ -323,9 +319,7 @@ contract VaultTest is Test, VyperDeployer {
         uint256 expectedUser2VaultBalance = getExpectedDepositAmount(feeParams);
 
         /// process mint request in the queue for user1
-        router.acquireLock();
         router.processMintRequest(OracleParams(x, block.timestamp + 1 days));
-        router.releaseLock();
 
         /// coin price usd for user2 deposit
         x[0] = CoinPriceUSD(address(0), 1600e4);
@@ -344,9 +338,7 @@ contract VaultTest is Test, VyperDeployer {
         uint256 expectedUser1VaultBalance = getExpectedDepositAmount(feeParams);
 
         /// process mint request in the queue for user2
-        router.acquireLock();
         router.processMintRequest(OracleParams(x, block.timestamp + 1 days));
-        router.releaseLock();
 
         uint256 routerVaultBalance = vault.balanceOf(address(router));
         uint256 user1VaultBalance = vault.balanceOf(user1);
@@ -434,9 +426,7 @@ contract VaultTest is Test, VyperDeployer {
         );
 
         /// process burn request in the queue for user1
-        router.acquireLock();
         router.processBurnRequest(OracleParams(x, block.timestamp + 1 days));
-        router.releaseLock();
 
         /// coin price usd for user2 withdraw
         x[0] = CoinPriceUSD(address(0), 1600e4);
@@ -457,9 +447,7 @@ contract VaultTest is Test, VyperDeployer {
         );
 
         /// process burn request in the queue for user2
-        router.acquireLock();
         router.processBurnRequest(OracleParams(x, block.timestamp + 1 days));
-        router.releaseLock();
 
         uint256 routerVaultBalance = vault.balanceOf(address(router));
         uint256 user1VaultBalance = vault.balanceOf(user1);
