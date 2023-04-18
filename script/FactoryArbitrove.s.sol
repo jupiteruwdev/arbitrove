@@ -155,11 +155,13 @@ contract DeployFactory is Script, VyperDeployer {
         vm.startBroadcast(deployerPrivateKey);
 
         FactoryArbitrove factory = new FactoryArbitrove();
-        address routerAddress = deployContract("src/contracts/Router.vy");
-        Router(routerAddress).initialize(
-            factory.vaultAddress(),
-            factory.addressRegistryAddress(),
-            deployer
+        address routerAddress = deployContractWithArgs(
+            "src/contracts/Router.vy",
+            abi.encode(
+                factory.vaultAddress(),
+                factory.addressRegistryAddress(),
+                deployer
+            )
         );
         Router(routerAddress).setFee(5);
         Router(routerAddress).setFeeDenominator(1000);
