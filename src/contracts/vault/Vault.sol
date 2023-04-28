@@ -164,16 +164,11 @@ contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
         /// vault token mint
         /// poolRatio = depositValue * poolRatio denominator / tvl
         /// formula: poolRatio * totalSupply / (poolRatio denominator) * (100 - fee) / (fee denominator)
+        uint256 poolRatio = (depositValue * poolRatioDenominator) / tvlUSD1e18X;
         _mint(
             msg.sender,
-            (
-                ((depositValue *
-                    poolRatioDenominator *
-                    totalSupply() *
-                    uint256(weightDenominator - fee)) /
-                    tvlUSD1e18X /
-                    poolRatioDenominator)
-            ) / uint256(weightDenominator)
+            (((poolRatio * totalSupply()) / poolRatioDenominator) *
+                uint256(weightDenominator - fee)) / uint256(weightDenominator)
         );
     }
 
@@ -211,16 +206,12 @@ contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
         /// burn vault token
         /// poolRatio = withdrawalValue * poolRatio denominator / tvl
         /// formula: poolRatio * totalSupply * (100 - fee) / 100 (fee denominator) / 10000 (poolRatio denominator)
+        uint256 poolRatio = (withdrawalValue * poolRatioDenominator) /
+            tvlUSD1e18X;
         _burn(
             msg.sender,
-            (
-                ((withdrawalValue *
-                    poolRatioDenominator *
-                    totalSupply() *
-                    uint256(weightDenominator - fee)) /
-                    tvlUSD1e18X /
-                    poolRatioDenominator)
-            ) / uint256(weightDenominator)
+            (((poolRatio * totalSupply()) / poolRatioDenominator) *
+                uint256(weightDenominator - fee)) / uint256(weightDenominator)
         );
 
         /// increase claimable debt amount for withdrawing amount of coin later
