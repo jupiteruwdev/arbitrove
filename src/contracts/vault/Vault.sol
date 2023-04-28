@@ -298,8 +298,10 @@ contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
     ) external onlyOwner {
         require(destination != address(0), "invalid destination");
         require(addressRegistry.isWhitelistedRebalancer(destination));
-        if (coin == address(0)) payable(destination).transfer(amount);
-        else IERC20(coin).safeTransfer(destination, amount);
+        if (coin == address(0)) {
+            (bool success, ) = payable(destination).call{value: amount}("");
+            require(success, "deposit to destination failed");
+        } else IERC20(coin).safeTransfer(destination, amount);
         emit Rebalance(destination, coin, amount);
     }
 
