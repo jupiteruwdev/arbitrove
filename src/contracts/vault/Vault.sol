@@ -14,21 +14,10 @@ import "@structs/structs.sol";
 /// The Vault contract provides a secure and flexible platform for depositing and withdrawing coins, as well as approving and depositing ETH to strategies.
 contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
     using SafeERC20 for IERC20;
-    struct DepositParams {
+    struct DepositWithrawalParams {
         /// Deposit coin position in cpu array
         uint256 coinPositionInCPU;
         /// Deposit amount
-        uint256 _amount;
-        /// Vault's Coin price usd array
-        CoinPriceUSD[] cpu;
-        /// Expire time stamp
-        uint256 expireTimestamp;
-    }
-
-    struct WithdrawalParams {
-        /// Withdraw coin position in cpu array
-        uint256 coinPositionInCPU;
-        /// Withdrawal amount
         uint256 _amount;
         /// Vault's Coin price usd array
         CoinPriceUSD[] cpu;
@@ -127,7 +116,7 @@ contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
 
     /// @notice Deposit. Note that the deposit amount is transferred to the vault from the router after checking the amount of ALP minted. If the amount of ALP minted is not correct, the call will revert and the router will refund.
     /// @param params Deposit params
-    function deposit(DepositParams memory params) external onlyRouter {
+    function deposit(DepositWithrawalParams memory params) external onlyRouter {
         FeeParams memory feeParams = FeeParams({
             cpu: params.cpu,
             vault: this,
@@ -136,13 +125,11 @@ contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
             amount: params._amount
         });
         address coin = params.cpu[params.coinPositionInCPU].coin;
-        uint256 __decimals = coin == address(0)
-            ? 18
-            : IERC20Metadata(coin).decimals();
-        require(
-            getAmountAcrossStrategies(coin) + params._amount < coinCap[coin],
-            "Coin cap reached"
-        );
+        uint256 __decimals = IERC20Metadata(coin).decimals();
+        uint256 coinCapValue = ((getAmountAcrossStrategies(coin) +
+            params._amount) * params.cpu[params.coinPositionInCPU].price) /
+            10 ** __decimals;
+        require(coinCapValue < coinCap[coin], "Coin cap reached");
 
         /// calculate deposit value
         /// formula: depositValue = coinPriceUSD * coinDepositAmount / 10**coinDecimal
@@ -162,19 +149,22 @@ contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
             .getDepositFee(feeParams);
 
         /// vault token mint
-        /// poolRatio = depositValue * poolRatio denominator / tvl
-        /// formula: poolRatio * totalSupply / (poolRatio denominator) * (100 - fee) / (fee denominator)
+        /// poolRatio = depositValue * poolRatioDenominator / tvl
         uint256 poolRatio = (depositValue * poolRatioDenominator) / tvlUSD1e18X;
-        _mint(
-            msg.sender,
-            (((poolRatio * totalSupply()) / poolRatioDenominator) *
-                uint256(weightDenominator - fee)) / uint256(weightDenominator)
-        );
+        /// mintAmountBeforeFee = poolRatio * totalSupply / poolRatioDenominator
+        uint256 mintAmountBeforeFee = (poolRatio * totalSupply()) /
+            poolRatioDenominator;
+        /// mintAmount = mintAmountBeforeFee * (feeDenominator - fee) / feeDenominator
+        uint256 mintAmount = (mintAmountBeforeFee *
+            uint256(weightDenominator - fee)) / uint256(weightDenominator);
+        _mint(msg.sender, mintAmount);
     }
 
     /// @notice Withdraw. Note that the amount of ALP burned is checked before the router calls `claimDebt` subsequently to claim the token. If the amount of ALP burned is not correct, the call will revert and the router will refund.
     /// @param params Withdraw params
-    function withdraw(WithdrawalParams memory params) external onlyRouter {
+    function withdraw(
+        DepositWithrawalParams memory params
+    ) external onlyRouter {
         FeeParams memory feeParams = FeeParams({
             cpu: params.cpu,
             vault: this,
@@ -183,9 +173,7 @@ contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
             amount: params._amount
         });
         address coin = params.cpu[params.coinPositionInCPU].coin;
-        uint256 __decimals = coin == address(0)
-            ? 18
-            : IERC20Metadata(coin).decimals();
+        uint256 __decimals = IERC20Metadata(coin).decimals();
 
         /// calculate withdrawal value
         /// formula: withdrawalValue = coinPriceUSD * withdrawalCoinAmount / 10**coinDecimal
@@ -204,15 +192,17 @@ contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
             .getWithdrawalFee(feeParams);
 
         /// burn vault token
-        /// poolRatio = withdrawalValue * poolRatio denominator / tvl
-        /// formula: poolRatio * totalSupply * (100 - fee) / 100 (fee denominator) / 10000 (poolRatio denominator)
+        /// poolRatio = withdrawalValue * poolRatioDenominator / tvl
         uint256 poolRatio = (withdrawalValue * poolRatioDenominator) /
             tvlUSD1e18X;
-        _burn(
-            msg.sender,
-            (((poolRatio * totalSupply()) / poolRatioDenominator) *
-                uint256(weightDenominator - fee)) / uint256(weightDenominator)
-        );
+        /// burnAmountBeforeFee = poolRatio * totalSupply / poolRatioDenominator
+        uint256 burnAmountBeforeFee = (poolRatio * totalSupply()) /
+            poolRatioDenominator;
+        /// burnAmount = burnAmountBeforeFee * (feeDenominator - fee) / feeDenominator
+        uint256 burnAmount = (burnAmountBeforeFee *
+            uint256(weightDenominator - fee)) / uint256(weightDenominator);
+
+        _burn(msg.sender, burnAmount);
 
         /// increase claimable debt amount for withdrawing amount of coin later
         debt[coin] += params._amount;
@@ -224,8 +214,7 @@ contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
     function claimDebt(address coin, uint256 amount) external onlyRouter {
         require(debt[coin] >= amount, "insufficient debt amount for coin");
         debt[coin] -= amount;
-        if (coin == address(0)) payable(msg.sender).transfer(amount);
-        else IERC20(coin).safeTransfer(msg.sender, amount);
+        IERC20(coin).safeTransfer(msg.sender, amount);
     }
 
     /// @notice Approve `amount` of coin for strategy to use

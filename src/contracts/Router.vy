@@ -60,7 +60,7 @@ owner: public(address)
 # The dark oracle is opensourced and a real-only service account will be provided to the public to verify our claims any time.
 darkOracle: public(address)
 fee: public(uint256)
-feeDenominator: public(uint256)
+feeDenominator: public(constant(uint256)) = as_wei_value(1, "ether")
 burntAmounts: public(HashMap[address, uint256])
 vault: address
 addressRegistry: AddressRegistry
@@ -80,6 +80,8 @@ event Initialized:
     vault: indexed(address)
     addressRegistry: AddressRegistry
     darkOracle: indexed(address)
+event SetFee:
+    fee: indexed(uint256)
 event Suicide: pass
 
 @external
@@ -95,12 +97,9 @@ def __init__(_vault: address, _addressRegistry: AddressRegistry, _darkOracle: ad
 @external
 def setFee(_fee: uint256):
     assert msg.sender == self.owner, "Not a permitted user"
+    assert _fee <= as_wei_value(0.5, "ether"), "Invalid fee amount"
     self.fee = _fee
-
-@external
-def setFeeDenominator(_feeDenominator: uint256):
-    assert msg.sender == self.owner, "Not a permitted user"
-    self.feeDenominator = _feeDenominator
+    log SetFee(_fee)
 
 # request vault to mint ALP tokens and sends payment tokens to vault afterwards
 @external 
@@ -116,9 +115,7 @@ def processMintRequest(dwp: OracleParams):
     _amountToMint: uint256 = mr.inputTokenAmount
     # taken off protocol fee
     if self.fee > 0:
-        if self.feeDenominator < self.fee:
-            raise "Invalid feeDenominator"
-        _amountToMint = _amountToMint * (self.feeDenominator - self.fee) / self.feeDenominator
+        _amountToMint = _amountToMint * (feeDenominator - self.fee) / feeDenominator
     IVault(self.vault).deposit(DepositWithdrawalParams({
         coinPositionInCPU: self.getCoinPositionInCPU(dwp.cpu, mr.coin.address),
         _amount: _amountToMint,
@@ -166,9 +163,7 @@ def processBurnRequest(dwp: OracleParams):
     delta: uint256 = before_balance - after_balance
     # taken off protocol fee
     if self.fee > 0:
-        if self.feeDenominator < self.fee:
-            raise "Invalid feeDenominator"
-        delta = delta * (self.feeDenominator + self.fee) / self.feeDenominator
+        delta = delta * (feeDenominator + self.fee) / feeDenominator
     if delta > br.maxAlpAmount:
         raise "Too much ALP burned"
     IVault(self.vault).claimDebt(dwp.cpu[coinPositionInCPU].coin, br.outputTokenAmount)
@@ -223,6 +218,8 @@ def rescueStuckTokens(token: IERC20, amount: uint256):
 def suicide():
     assert msg.sender == self.owner, "Not a permitted user"
     assert self.balance == 0, "Too many eth"
+    assert self.mintQueueBack == 0, "Mint queue is not empty"
+    assert self.burnQueueBack == 0, "Burn queue is not empty"
     log Suicide()
     selfdestruct(self.owner)
 

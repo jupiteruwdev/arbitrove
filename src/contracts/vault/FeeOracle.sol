@@ -22,6 +22,7 @@ contract FeeOracle is OwnableUpgradeable {
     uint256 constant weightDenominator = 1e18;
 
     event SetTargets(CoinWeight[] indexed coinWeights);
+    event SetMaxFee(uint256 indexed maxFee);
     event Initialized(uint256 indexed maxFee);
 
     constructor() {
@@ -29,7 +30,7 @@ contract FeeOracle is OwnableUpgradeable {
     }
 
     function init(uint256 _maxFee) external initializer {
-        require(_maxFee <= 100, "_maxFee can't greater than 100");
+        require(_maxFee <= 0.5e18, "_maxFee can't be greater than 0.5e18");
 
         __Ownable_init();
         maxFee = _maxFee;
@@ -38,7 +39,9 @@ contract FeeOracle is OwnableUpgradeable {
     }
 
     function setMaxFee(uint256 _maxFee) external onlyOwner {
+        require(_maxFee <= 0.5e18, "_maxFee can't be greater than 0.5e18");
         maxFee = _maxFee;
+        emit SetMaxFee(_maxFee);
     }
 
     /// @notice Set target coin weights
