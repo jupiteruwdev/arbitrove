@@ -42,6 +42,14 @@ contract AddressRegistry is OwnableUpgradeable {
         emit Initialized(address(_feeOracle), _router);
     }
 
+    function getSupportedCoinAddresses()
+        external
+        view
+        returns (address[] memory)
+    {
+        return supportedCoinAddresses;
+    }
+
     /// @notice Set router
     /// @param _router address of router
     function setRouter(address _router) external onlyOwner {
@@ -63,23 +71,20 @@ contract AddressRegistry is OwnableUpgradeable {
             "Strategy already whitelisted"
         );
         for (uint256 i; i < coins.length; ) {
-            IStrategy[] memory strategiesForCoin = coinToStrategy[coins[i]];
             uint256 j;
-            /// check strategy is already registered for the coin
-            for (; j < strategiesForCoin.length; j++) {
-                if (address(strategiesForCoin[j]) == address(strategy)) break;
-            }
-            /// add strategy if it's not registered
-            if (j == strategiesForCoin.length) {
-                coinToStrategy[coins[i]].push(strategy);
-            }
+            /// add strategy
+            coinToStrategy[coins[i]].push(strategy);
+
             uint256 supportedCoinLength = supportedCoinAddresses.length;
             for (j = 0; j < supportedCoinLength; j++) {
                 if (supportedCoinAddresses[j] == coins[i]) {
                     break;
                 }
             }
-            if (j == supportedCoinLength) supportedCoinAddresses.push(coins[i]);
+            if (j == supportedCoinLength) {
+                supportedCoinAddresses.push(coins[i]);
+            }
+
             unchecked {
                 i++;
             }

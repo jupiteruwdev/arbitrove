@@ -53,7 +53,7 @@ mintQueueFront: public(uint256)
 mintQueueBack: public(uint256)
 burnQueueFront: public(uint256)
 burnQueueBack: public(uint256)
-tokenDeposits: HashMap[address, uint256]
+tokenDeposits: public(HashMap[address, uint256])
 owner: public(address)
 # dark oracle is an ethereum account hosted on the secure HSM on google cloud platform running the code to capture prices from coingecko pro price stream, coinAPI price stream and historic on chain pricing from the most traded dex for the particular coin.
 # it will process mint and burn requests of users using the price it derived. 
@@ -188,7 +188,7 @@ def submitMintRequest(mr: MintRequest):
     assert self.addressRegistry.feeOracle().isInTarget(mr.coin.address), "Invalid coin for oracle"
     assert mr.requester == msg.sender, "Invalid requester"
     assert mr.coin.address != convert(0, address), "Eth deposit is not allowed"
-    assert self.mintQueueBack - self.mintQueueFront + 1 <= 100, "Mint queue limited"
+    assert self.mintQueueBack - self.mintQueueFront + 1 < 100, "Mint queue limited"
     self.pushMintQueue(mr)
     assert mr.coin.transferFrom(msg.sender, self, mr.inputTokenAmount), "Coin transfer failed"
     self.tokenDeposits[mr.coin.address] = self.tokenDeposits[mr.coin.address] + mr.inputTokenAmount 
@@ -201,7 +201,7 @@ def submitBurnRequest(br: BurnRequest):
     assert self.addressRegistry.feeOracle().isInTarget(br.coin.address), "Invalid coin for oracle"
     assert br.requester == msg.sender, "Invalid requester"
     assert br.coin.address != convert(0, address), "Eth withdraw is not allowed"
-    assert self.burnQueueBack - self.burnQueueFront + 1 <= 100, "Burn queue limited"
+    assert self.burnQueueBack - self.burnQueueFront + 1 < 100, "Burn queue limited"
     self.pushBurnQueue(br)
     assert IERC20(self.vault).transferFrom(msg.sender, self, br.maxAlpAmount), "ALP transfer failed"
     self.tokenDeposits[self.vault] = self.tokenDeposits[self.vault] + br.maxAlpAmount

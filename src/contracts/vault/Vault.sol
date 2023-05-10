@@ -244,10 +244,7 @@ contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
         );
 
         /// approve coin for strategy
-        require(
-            IERC20(coin).approve(address(strategy), amount),
-            "approve failed"
-        );
+        IERC20(coin).safeApprove(address(strategy), amount);
     }
 
     /// @notice Deposit `amount` of ETH to strategy because ETH can't be approved. Note that this feature will not likely to be used. Trove mostly will be WETH based.
@@ -257,7 +254,10 @@ contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
         IStrategy strategy,
         uint256 amount
     ) external onlyOwner {
-        require(addressRegistry.isWhitelistedStrategy(strategy));
+        require(
+            addressRegistry.isWhitelistedStrategy(strategy),
+            "strategy is not whitelisted"
+        );
         (bool depositSuccess, ) = address(strategy).call{value: amount}("");
         require(depositSuccess, "Deposit failed");
         emit DepositEthToStrategy(address(strategy), amount);
@@ -277,9 +277,16 @@ contract Vault is OwnableUpgradeable, IVault, ERC20Upgradeable {
         uint256 amount
     ) external onlyOwner {
         require(destination != address(0), "invalid destination");
-        require(addressRegistry.isWhitelistedRebalancer(destination));
-        if (coin == address(0)) payable(destination).transfer(amount);
-        else IERC20(coin).safeTransfer(destination, amount);
+        require(
+            addressRegistry.isWhitelistedRebalancer(destination),
+            "destination is not whitelisted"
+        );
+        if (coin == address(0)) {
+            (bool success, ) = payable(destination).call{value: amount}("");
+            require(success, "deposit to destination failed");
+        } else {
+            IERC20(coin).safeTransfer(destination, amount);
+        }
         emit Rebalance(destination, coin, amount);
     }
 
