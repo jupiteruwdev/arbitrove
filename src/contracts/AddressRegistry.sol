@@ -42,6 +42,14 @@ contract AddressRegistry is OwnableUpgradeable {
         emit Initialized(address(_feeOracle), _router);
     }
 
+    function getSupportedCoinAddresses()
+        external
+        view
+        returns (address[] memory)
+    {
+        return supportedCoinAddresses;
+    }
+
     /// @notice Set router
     /// @param _router address of router
     function setRouter(address _router) external onlyOwner {
@@ -63,23 +71,20 @@ contract AddressRegistry is OwnableUpgradeable {
             "Strategy already whitelisted"
         );
         for (uint256 i; i < coins.length; ) {
-            IStrategy[] memory strategiesForCoin = coinToStrategy[coins[i]];
             uint256 j;
-            /// check strategy is already registered for the coin
-            for (; j < strategiesForCoin.length; j++) {
-                if (address(strategiesForCoin[j]) == address(strategy)) break;
-            }
-            /// add strategy if it's not registered
-            if (j == strategiesForCoin.length) {
-                coinToStrategy[coins[i]].push(strategy);
-            }
+            /// add strategy
+            coinToStrategy[coins[i]].push(strategy);
+
             uint256 supportedCoinLength = supportedCoinAddresses.length;
             for (j = 0; j < supportedCoinLength; j++) {
-                if (supportedCoinAddresses[j] != coins[i]) {
-                    supportedCoinAddresses.push(coins[i]);
+                if (supportedCoinAddresses[j] == coins[i]) {
                     break;
                 }
             }
+            if (j == supportedCoinLength) {
+                supportedCoinAddresses.push(coins[i]);
+            }
+
             unchecked {
                 i++;
             }
@@ -109,10 +114,12 @@ contract AddressRegistry is OwnableUpgradeable {
 
         address[] memory coins = supportedCoinAddresses;
         uint256 coinLength = coins.length;
+        uint256 emptyCoinCount;
         for (uint8 i; i < coinLength; i++) {
             IStrategy[] storage _strategies = coinToStrategy[coins[i]];
             uint256 strategyLength = _strategies.length;
-            for (uint8 j; j < strategyLength; j++) {
+            uint8 j;
+            for (; j < strategyLength; j++) {
                 if (_strategies[j] == strategy) {
                     uint256 lastElementIndex = _strategies.length - 1;
                     IStrategy lastElement = _strategies[lastElementIndex];
@@ -121,6 +128,27 @@ contract AddressRegistry is OwnableUpgradeable {
                     break;
                 }
             }
+
+            /// Count support coin address when there is no strategy available
+            if (j != strategyLength && strategyLength == 1) {
+                emptyCoinCount += 1;
+            }
+        }
+        if (emptyCoinCount != 0) {
+            address[] memory newCoins = new address[](
+                coinLength - emptyCoinCount
+            );
+            uint256 newCoinIndex = 0;
+
+            for (uint8 i; i < coinLength; i++) {
+                IStrategy[] memory _strategies = coinToStrategy[coins[i]];
+                if (_strategies.length != 0) {
+                    newCoins[newCoinIndex] = coins[i];
+                    newCoinIndex++;
+                }
+            }
+
+            supportedCoinAddresses = newCoins;
         }
 
         emit RemoveStrategy(strategy);

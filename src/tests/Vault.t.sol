@@ -2,6 +2,9 @@
 
 pragma solidity 0.8.17;
 import "forge-std/Test.sol";
+
+import "forge-std/StdUtils.sol";
+
 import "@mocks/MockERC20.sol";
 import "@mocks/MockStrategy.sol";
 import "@/FactoryArbitrove.sol";
@@ -21,6 +24,8 @@ contract VaultTest is Test, VyperDeployer {
     uint256 public mockUser1Balance = 1e18;
     uint256 public mockUser2Balance = 10e18;
     uint256 public mockVaultBalance = 1e19;
+
+    event SetAddressRegistry(AddressRegistry indexed addressRegistry);
 
     function setUp() public {
         vm.startPrank(whale);
@@ -46,6 +51,7 @@ contract VaultTest is Test, VyperDeployer {
 
         ar = AddressRegistry(factory.addressRegistryAddress());
         ar.init(FeeOracle(factory.feeOracleAddress()), address(router));
+
         Vault(payable(factory.vaultAddress())).init829{value: 1e18}(
             AddressRegistry(factory.addressRegistryAddress())
         );
@@ -75,65 +81,147 @@ contract VaultTest is Test, VyperDeployer {
     }
 
     // function testLive() public {
-    //     Router _router = Router(0xf945804c10197a9345b75e8B50fcED15626eD755);
+    //     Router _router = Router(0x7Ea13E17B09789A4D35616E96725cF2E26875A1E);
     //     FeeOracle _feeOracle = FeeOracle(
-    //         0x7F892FCbD1B4dfDA9BC5A1DcB3149EF7F915c07F
+    //         0x2E4Fe97147Af312e72CD65AB234c4b85ccAdb674
     //     );
-    //     vm.startPrank(0xaD45b73CE1C0cBa2333Fe5f15Ac37df6E08f4111);
-    //     CoinPriceUSD[] memory cpu = new CoinPriceUSD[](6);
+    //     Vault _vault = Vault(
+    //         payable(0xb49B6A3Fd1F4bB510Ef776de7A88A9e65904478A)
+    //     );
+    //     vm.startPrank(0xd00C229faE4dAe8E3b1F5d39f4e7866f737B25a5);
+    //     _router.submitMintRequest(
+    //         MintRequest(
+    //             1000000000000000000,
+    //             1000,
+    //             IERC20(0x82aF49447D8a07e3bd95BD0d56f35241523fBab1),
+    //             0xd00C229faE4dAe8E3b1F5d39f4e7866f737B25a5,
+    //             block.timestamp + 1 days
+    //         )
+    //     );
+    //     vm.stopPrank();
+
+    //     // emit log_uint(
+    //     //     _vault.coinCap(0x82aF49447D8a07e3bd95BD0d56f35241523fBab1)
+    //     // );
+    //     // emit log_uint(_vault.blockCapUSD());
+
+    //     vm.startPrank(0x84799b137192E5db1d0Cde253351EB121Ac8BBF8);
+    //     CoinPriceUSD[] memory cpu = new CoinPriceUSD[](9);
     //     cpu[0] = CoinPriceUSD(
     //         0x0000000000000000000000000000000000000000,
-    //         1911640000000000000000
+    //         1893080000000000000000
     //     );
     //     cpu[1] = CoinPriceUSD(
-    //         0xdCBaAe1f76a21faaDF4405FD144D6F574396C108,
-    //         1910310000000000000000
+    //         0x82aF49447D8a07e3bd95BD0d56f35241523fBab1,
+    //         1893080000000000000000
     //     );
     //     cpu[2] = CoinPriceUSD(
-    //         0x626ee844B0228A11E5385E574d848745ce31AB86,
-    //         329154000000000000
+    //         0xfc5A1A6EB076a2C7aD06eD22C90d7E710E35ad0a,
+    //         72250000000000000000
     //     );
     //     cpu[3] = CoinPriceUSD(
-    //         0xB9a3819677c255ba468Ac11F38131a4C5A0B5013,
-    //         2500000000000000000
+    //         0x539bdE0d7Dbd336b79148AA742883198BBF60342,
+    //         1150000000000000000
     //     );
     //     cpu[4] = CoinPriceUSD(
-    //         0x7034CcE1CF5832Ba9B5aaE2881f733b06448a7b3,
-    //         2281320000000000000000
+    //         0x3d9907F9a368ad0a51Be60f7Da3b97cf940982D8,
+    //         2165250000000000000000
     //     );
     //     cpu[5] = CoinPriceUSD(
-    //         0x8877e3A8fF7F6886Df9604ef3F9a6b3205ee40D4,
-    //         78560000000000000000
+    //         0x10393c20975cF177a3513071bC110f7962CD67da,
+    //         2110000000000000000
+    //     );
+    //     cpu[6] = CoinPriceUSD(
+    //         0x18c11FD286C5EC11c3b683Caa813B77f5163A122,
+    //         6080000000000000000
+    //     );
+    //     cpu[7] = CoinPriceUSD(
+    //         0x3082CC23568eA640225c2467653dB90e9250AaA0,
+    //         386494000000000000
+    //     );
+    //     cpu[8] = CoinPriceUSD(
+    //         0x371c7ec6D8039ff7933a2AA28EB827Ffe1F52f07,
+    //         502564000000000000
     //     );
 
     //     OracleParams memory op = OracleParams(cpu, block.timestamp + 10000);
 
-    //     CoinWeight[] memory targets = _feeOracle.getTargets();
+    //     // CoinWeight[] memory targets = _feeOracle.getTargets();
 
-    //     uint256 maxFee = _feeOracle.maxFee();
+    //     // uint256 maxFee = _feeOracle.maxFee();
 
-    //     emit log_uint(targets[1].weight);
-    //     emit log_uint(maxFee);
+    //     // emit log_uint(targets[1].weight);
+    //     // emit log_uint(maxFee);
 
     //     FeeParams memory wfp = FeeParams(
     //         cpu,
-    //         IVault(0x727f59e87E274DfEb740213c6b3539Ced9CC142A),
+    //         IVault(0xb49B6A3Fd1F4bB510Ef776de7A88A9e65904478A),
     //         block.timestamp + 1000,
     //         1,
-    //         0.86e18
+    //         1000000000000000000
     //         // 100
     //     );
 
-    //     (, CoinWeight[] memory weights, uint256 tvl) = _feeOracle
-    //         .getWithdrawalFee(wfp);
+    //     // (, CoinWeight[] memory weights, uint256 tvl) = _feeOracle
+    //     //     .getWithdrawalFee(wfp);
 
-    //     emit log_uint(weights[1].weight);
+    //     // emit log_uint(weights[1].weight);
 
     //     // _router.acquireLock();
-    //     // _router.processBurnRequest(op);
+
+    //     emit log_uint(_vault.totalSupply());
+    //     int256 test = 1e18;
+    //     emit log_uint(uint256(test));
+    //     bytes32 poolRatio = vm.load(address(_vault), bytes32(uint256(0)));
+    //     bytes32 blockRatio = vm.load(address(_vault), bytes32(uint256(3)));
+
+    //     emit log_bytes32(poolRatio);
+
+    //     uint256 depositValue = (cpu[1].price * 1e18) / 10 ** 18;
+    //     uint256 poolRatioDenominator = 1e18;
+    //     int256 weightDenominator = 1e18;
+    //     uint256 totalSupply = _vault.totalSupply();
+    //     uint256 tvl = 532648364277809666849270;
+    //     int256 fee = 0;
+
+    //     uint256 mintAmount = (
+    //         ((((depositValue * poolRatioDenominator) / tvl) *
+    //             totalSupply *
+    //             uint256(weightDenominator - fee)) / poolRatioDenominator)
+    //     ) / uint256(weightDenominator);
+
+    //     emit log_uint(mintAmount);
+
+    //     // emit log_uint(uint256(poolRatio));
+    //     // emit log_uint(uint256(blockRatio));
+    //     // _router.processMintRequest(op);
 
     //     vm.stopPrank();
     // }
+
+    function testInit() public {
+        FactoryArbitrove factory = new FactoryArbitrove();
+        factory.upgradeImplementation(
+            TProxy(payable(factory.vaultAddress())),
+            address(new Vault())
+        );
+
+        address vaultAddress = factory.vaultAddress();
+        Vault _vault = Vault(payable(vaultAddress));
+
+        vm.expectRevert("_addressRegistry address can't be zero");
+        _vault.init829{value: 1e18}(AddressRegistry(address(0)));
+
+        vm.expectRevert();
+        _vault.init829{value: 1e14}(
+            AddressRegistry(AddressRegistry(address(1)))
+        );
+
+        vm.expectEmit(true, false, false, true);
+        emit SetAddressRegistry(ar);
+
+        _vault.init829{value: 1e18}(ar);
+    }
 
     function testSetup() public {
         CoinWeight[] memory cw = new CoinWeight[](2);
@@ -267,6 +355,382 @@ contract VaultTest is Test, VyperDeployer {
     function testMultiDepositAndWithdraw() public {
         multipleDeposit();
         multipleWithdraw();
+    }
+
+    function testSetAddressRegistry(address _random) public {
+        vm.assume(_random != address(0));
+        vm.expectRevert();
+        vault.setAddressRegistry(AddressRegistry(_random));
+
+        vm.startPrank(whale);
+        AddressRegistry arZero = AddressRegistry(address(0));
+        vm.expectRevert("_addressRegistry address can't be zero");
+        vault.setAddressRegistry(arZero);
+
+        vault.setAddressRegistry(AddressRegistry(_random));
+        assertEq(address(vault.addressRegistry()), _random, "!addressRegistry");
+        vm.stopPrank();
+    }
+
+    function testSetCoinCapUSD(address _random) public {
+        vm.assume(_random != address(0));
+        vm.expectRevert();
+        vault.setCoinCapUSD(_random, 100e18);
+        vm.startPrank(whale);
+
+        vm.expectRevert("invalid coin address");
+        vault.setCoinCapUSD(address(0), 100e18);
+
+        vault.setCoinCapUSD(_random, 100e18);
+        assertEq(vault.coinCap(_random), 100e18, "!coinCapUSD");
+        vm.stopPrank();
+    }
+
+    function setBlockCap(uint256 _random) public {
+        vm.expectRevert();
+        vault.setBlockCap(_random);
+        vm.startPrank(whale);
+        vault.setBlockCap(_random);
+        assertEq(vault.blockCapUSD(), _random, "!blockCap");
+        vm.stopPrank();
+    }
+
+    function testClaimDebt(address _random) public {
+        vm.expectRevert(bytes("only router has permitted"));
+        vault.claimDebt(_random, 100e18);
+
+        vm.startPrank(address(router));
+        vm.expectRevert("insufficient debt amount for coin");
+        vault.claimDebt(_random, 100e18);
+        vm.stopPrank();
+    }
+
+    function testDepositCoinCapReached() public {
+        vm.startPrank(whale);
+        // set coin cap less than deposit amount
+        vault.setCoinCapUSD(
+            address(jonesToken),
+            ((mockCoin1Balance / 2) * 20e4) / 1e18
+        );
+        vm.stopPrank();
+        vm.startPrank(whale);
+        uint256 initialBalance = jonesToken.balanceOf(address(whale));
+        uint256 expectedJTWhaleBalance = initialBalance - mockCoin1Balance;
+        assertEq(
+            initialBalance,
+            mockCoin1Balance,
+            "!whale's jonesToken initial balance"
+        );
+        jonesToken.approve(address(router), mockCoin1Balance);
+
+        /// submit mint request to the router
+        router.submitMintRequest(
+            MintRequest(
+                mockCoin1Balance,
+                1000000000000,
+                jonesToken,
+                whale,
+                block.timestamp + 1 days
+            )
+        );
+
+        assertEq(
+            jonesToken.balanceOf(whale),
+            expectedJTWhaleBalance,
+            "!expected whale's jonesToken balance after submit mint"
+        );
+        assertEq(
+            jonesToken.balanceOf(address(router)),
+            mockCoin1Balance,
+            "!expected router jonesToken balance after submit mint"
+        );
+        assertEq(
+            jonesToken.balanceOf(address(vault)),
+            mockVaultBalance,
+            "!expected vault jonesToken balance after submit mint"
+        );
+
+        CoinPriceUSD[] memory x = new CoinPriceUSD[](2);
+        x[0] = CoinPriceUSD(address(0), 1600e4);
+        x[1] = CoinPriceUSD(address(jonesToken), 20e4);
+        assertEq(feeOracle.getTargets()[0].coin, x[0].coin);
+
+        /// process mint request in the queue
+        vm.expectRevert("Coin cap reached");
+        router.processMintRequest(OracleParams(x, block.timestamp + 1 days));
+        vm.stopPrank();
+    }
+
+    function testDepositBlockCapReached() public {
+        vm.startPrank(whale);
+        // set coin cap less than deposit amount
+        vault.setBlockCap(((mockCoin1Balance / 2) * 20e4) / 1e18);
+        vm.stopPrank();
+        vm.startPrank(whale);
+        uint256 initialBalance = jonesToken.balanceOf(address(whale));
+        uint256 expectedJTWhaleBalance = initialBalance - mockCoin1Balance;
+        assertEq(
+            initialBalance,
+            mockCoin1Balance,
+            "!whale's jonesToken initial balance"
+        );
+        jonesToken.approve(address(router), mockCoin1Balance);
+
+        /// submit mint request to the router
+        router.submitMintRequest(
+            MintRequest(
+                mockCoin1Balance,
+                1000000000000,
+                jonesToken,
+                whale,
+                block.timestamp + 1 days
+            )
+        );
+
+        assertEq(
+            jonesToken.balanceOf(whale),
+            expectedJTWhaleBalance,
+            "!expected whale's jonesToken balance after submit mint"
+        );
+        assertEq(
+            jonesToken.balanceOf(address(router)),
+            mockCoin1Balance,
+            "!expected router jonesToken balance after submit mint"
+        );
+        assertEq(
+            jonesToken.balanceOf(address(vault)),
+            mockVaultBalance,
+            "!expected vault jonesToken balance after submit mint"
+        );
+
+        CoinPriceUSD[] memory x = new CoinPriceUSD[](2);
+        x[0] = CoinPriceUSD(address(0), 1600e4);
+        x[1] = CoinPriceUSD(address(jonesToken), 20e4);
+        assertEq(feeOracle.getTargets()[0].coin, x[0].coin);
+
+        /// process mint request in the queue
+        vm.expectRevert("Block cap reached");
+        router.processMintRequest(OracleParams(x, block.timestamp + 1 days));
+        vm.stopPrank();
+    }
+
+    function testWhithdrawBlockCapReached() public {
+        vm.startPrank(whale);
+        // set coin cap less than deposit amount
+        vault.setBlockCap((((mockCoin1Balance * 3) / 2) * 20e4) / 1e18);
+        vm.stopPrank();
+        vm.startPrank(whale);
+        uint256 initialBalance = jonesToken.balanceOf(address(whale));
+        uint256 expectedJTWhaleBalance = initialBalance - mockCoin1Balance;
+        assertEq(
+            initialBalance,
+            mockCoin1Balance,
+            "!whale's jonesToken initial balance"
+        );
+        jonesToken.approve(address(router), mockCoin1Balance);
+
+        /// submit mint request to the router
+        router.submitMintRequest(
+            MintRequest(
+                mockCoin1Balance,
+                1000000000000,
+                jonesToken,
+                whale,
+                block.timestamp + 1 days
+            )
+        );
+
+        assertEq(
+            jonesToken.balanceOf(whale),
+            expectedJTWhaleBalance,
+            "!expected whale's jonesToken balance after submit mint"
+        );
+        assertEq(
+            jonesToken.balanceOf(address(router)),
+            mockCoin1Balance,
+            "!expected router jonesToken balance after submit mint"
+        );
+        assertEq(
+            jonesToken.balanceOf(address(vault)),
+            mockVaultBalance,
+            "!expected vault jonesToken balance after submit mint"
+        );
+
+        CoinPriceUSD[] memory x = new CoinPriceUSD[](2);
+        x[0] = CoinPriceUSD(address(0), 1600e4);
+        x[1] = CoinPriceUSD(address(jonesToken), 20e4);
+        assertEq(feeOracle.getTargets()[0].coin, x[0].coin);
+
+        /// process mint request in the queue
+        router.processMintRequest(OracleParams(x, block.timestamp + 1 days));
+
+        uint256 routerVaultBalance = vault.balanceOf(address(router));
+        uint256 whaleVaultBalance = vault.balanceOf(whale);
+        assertEq(
+            jonesToken.balanceOf(address(router)),
+            0,
+            "!expected router jonesToken balance after process mint"
+        );
+        assertEq(
+            routerVaultBalance,
+            0,
+            "!expected router vault balance after process mint"
+        );
+        assertGt(
+            whaleVaultBalance,
+            0,
+            "!expected whale vault balance after process mint"
+        );
+
+        /// Withdraw flow
+        initialBalance = jonesToken.balanceOf(address(whale));
+        assertEq(
+            initialBalance,
+            expectedJTWhaleBalance,
+            "!whale's jonesToken initial balance"
+        );
+        vault.approve(address(router), whaleVaultBalance);
+
+        /// submit burn request to the router
+        router.submitBurnRequest(
+            BurnRequest(
+                mockCoin1Balance,
+                mockCoin1Balance,
+                jonesToken,
+                whale,
+                block.timestamp + 1 days
+            )
+        );
+
+        vm.expectRevert("Block cap reached");
+        router.processBurnRequest(OracleParams(x, block.timestamp + 1 days));
+        vm.stopPrank();
+    }
+
+    function testApproveStrategy() public {
+        vm.startPrank(whale);
+        vm.expectRevert("invalid strategy address");
+        vault.approveStrategy(IStrategy(address(0)), address(1), 1e18);
+
+        vm.expectRevert("strategy is not whitelisted");
+        vault.approveStrategy(IStrategy(address(1)), address(1), 1e18);
+
+        address[] memory coins = new address[](2);
+        coins[0] = address(new MockERC20("Test Token1", "TT1"));
+        coins[1] = address(new MockERC20("Test Token2", "TT2"));
+
+        ar.addStrategy(IStrategy(address(1)), coins);
+
+        coins[1] = address(new MockERC20("Test Token4", "TT4"));
+
+        ar.addStrategy(IStrategy(address(2)), coins);
+
+        // strategy added but not whitelisted yet
+        vm.expectRevert("strategy is not whitelisted");
+        vault.approveStrategy(IStrategy(address(1)), coins[0], 1e18);
+
+        vm.warp(block.timestamp + 2 days);
+
+        vm.expectRevert("provided coin is not the part of strategy");
+        vault.approveStrategy(IStrategy(address(1)), address(4), 1e18);
+
+        vault.approveStrategy(IStrategy(address(2)), coins[0], 1e18);
+        assertEq(
+            IERC20(coins[0]).allowance(address(vault), address(2)),
+            1e18,
+            "!strategy allowance"
+        );
+
+        vm.stopPrank();
+    }
+
+    function testDepositETHToStrategy() public {
+        vm.startPrank(whale);
+        IStrategy strategy = IStrategy(address(1));
+        vm.expectRevert("strategy is not whitelisted");
+        vault.depositETHToStrategy(strategy, 1e18);
+
+        address[] memory coins = new address[](2);
+        coins[0] = address(new MockERC20("Test Token1", "TT1"));
+        coins[1] = address(new MockERC20("Test Token2", "TT2"));
+
+        ar.addStrategy(strategy, coins);
+
+        vm.warp(block.timestamp + 2 days);
+
+        vault.depositETHToStrategy(strategy, 1e18);
+        assertEq(address(1).balance, 1e18, "!eth deposit");
+
+        vm.expectRevert("Deposit failed");
+        vault.depositETHToStrategy(strategy, 11e18);
+
+        vm.stopPrank();
+    }
+
+    function testRebalancer() public {
+        vm.startPrank(whale);
+        vm.expectRevert("invalid destination");
+        vault.rebalance(address(0), address(1), 1e18);
+
+        vm.expectRevert("destination is not whitelisted");
+        vault.rebalance(address(1), address(2), 1e18);
+
+        ar.addRebalancer(address(1));
+
+        vm.warp(block.timestamp + 2 days);
+
+        vm.deal(address(vault), 10e18);
+
+        vault.rebalance(address(1), address(0), 1e18);
+        assertEq(address(1).balance, 1e18);
+
+        vm.expectRevert("deposit to destination failed");
+        vault.rebalance(address(1), address(0), 11e18);
+
+        MockERC20 testCoin = new MockERC20("Test", "T");
+        testCoin.mint(address(vault), 0.5e18);
+
+        vm.expectRevert();
+        vault.rebalance(address(1), address(testCoin), 1e18);
+        vm.stopPrank();
+    }
+
+    function testGetAmountAcrossStrategies() public {
+        assertEq(
+            vault.getAmountAcrossStrategies(address(0)),
+            address(vault).balance,
+            "!vault eth amount"
+        );
+
+        MockERC20 testCoin = new MockERC20("Test Token", "TT");
+
+        testCoin.mint(address(vault), 1e18);
+
+        assertEq(
+            vault.getAmountAcrossStrategies(address(testCoin)),
+            1e18,
+            "!1.vault test coin amount"
+        );
+
+        vm.startPrank(whale);
+        address[] memory coins = new address[](2);
+        coins[0] = address(testCoin);
+        coins[1] = address(new MockERC20("Test Token2", "TT2"));
+
+        ExampleStrategy strategy = new ExampleStrategy();
+
+        ar.addStrategy(strategy, coins);
+
+        vm.warp(block.timestamp + 2 days);
+        vm.stopPrank();
+
+        deal(address(testCoin), address(strategy), 1e18);
+
+        assertEq(
+            vault.getAmountAcrossStrategies(address(testCoin)),
+            2e18,
+            "!2.vault test coin amount"
+        );
     }
 
     function multipleDeposit() internal {
