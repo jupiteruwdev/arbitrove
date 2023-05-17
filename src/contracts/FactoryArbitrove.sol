@@ -4,12 +4,14 @@ import "openzeppelin-contracts/contracts/access/Ownable.sol";
 import "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import "@vault/Vault.sol";
 import "@/AddressRegistry.sol";
+import "@/Rebalancer.sol";
 import "@/TProxy.sol";
 
 contract FactoryArbitrove is Ownable {
     address public addressRegistryAddress;
     address public vaultAddress;
     address public feeOracleAddress;
+    address public rebalancerAddress;
 
     constructor() {
         AddressRegistry ar = new AddressRegistry();
@@ -18,10 +20,13 @@ contract FactoryArbitrove is Ownable {
         addressRegistryAddress = address(arProxy);
         Vault v = new Vault();
         FeeOracle fO = new FeeOracle();
+        Rebalancer rb = new Rebalancer();
         TProxy vProxy = new TProxy(address(v), address(this), "");
         TProxy fOProxy = new TProxy(address(fO), address(this), "");
+        TProxy rbProxy = new TProxy(address(rb), address(this), "");
         vaultAddress = address(vProxy);
         feeOracleAddress = address(fOProxy);
+        rebalancerAddress = address(rbProxy);
     }
 
     function upgradeImplementation(

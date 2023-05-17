@@ -8,4 +8,10 @@ interface IVault {
     ) external view returns (uint256 value);
 
     function debt(address coin) external view returns (uint256 value);
+
+    function rebalance(
+        address destination,
+        address coin,
+        uint256 amount
+    ) external;
 }
